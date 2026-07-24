@@ -1,0 +1,18 @@
+# Secrets - never commit
+backend/gemini_key.txt
+
+# Local database & uploaded images
+backend/registrations.db
+backend/images/
+
+# Runtime/local files
+current-url.txt
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node (in case frontend is ever built)
+node_modules/
