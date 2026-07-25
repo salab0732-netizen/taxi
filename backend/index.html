@@ -6,7 +6,6 @@
 <title>تسجيل سائقي سيارات الأجرة</title>
 <script src="/static/react.js"></script>
 <script src="/static/react-dom.js"></script>
-<script src="/static/babel.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: linear-gradient(135deg,#f0fdf4,#ecfdf5,#f9fafb); min-height: 100vh; }
@@ -15,74 +14,174 @@ body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: linear-gr
 </head>
 <body>
 <div id="root"></div>
-<script type="text/babel" data-presets="react">
-const { useState, useRef, useCallback, useEffect } = React;
+<script>
+import { jsxDEV as _jsxDEV, Fragment as _Fragment } from "react/jsx-dev-runtime";
+const {
+  useState,
+  useRef,
+  useCallback,
+  useEffect
+} = React;
 const API = "/api";
-
-const WILAYAS = ["أدرار","الشلف","الأغواط","أم البواقي","باتنة","بجاية","بسكرة","بشار","البليدة","البويرة","تمنراست","تبسة","تلمسان","تيارت","تيزي وزو","الجزائر","الجلفة","جيجل","سطيف","سعيدة","سكيكدة","سيدي بلعباس","عنابة","قالمة","قسنطينة","المدية","مستغانم","المسيلة","معسكر","ورقلة","وهران","البيض","إليزي","برج بوعريريج","بومرداس","الطارف","تندوف","تيسمسيلت","الوادي","خنشلة","سوق أهراس","تيبازة","ميلة","عين الدفلى","النعامة","عين تيموشنت","غرداية","غليزان","المغير","المنيعة","أولاد جلال","برج باجي مختار","بني عباس","تيميمون","تقرت","جانت","عين صالح","عين قزام"];
-const CATS = ["A","A1","A2","AM","B","B1","BE","C","C1","C1E","CE","D","D1","D1E","DE"];
-const INIT = { nomAr:"",prenomAr:"",nom:"",prenom:"",dateNaissance:"",lieuNaissance:"",wilayaNaissance:"",nationalite:"جزائري",nin:"",telephone:"",telephone2:"",adresse:"",numPermis:"",dateDelivrance:"",dateExpiration:"",lieuDelivrance:"",categories:[],notes:"" };
-const inp = { width:"100%",padding:"10px 12px",border:"1.5px solid #d1d5db",borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit",background:"#fff" };
-
+const WILAYAS = ["أدرار", "الشلف", "الأغواط", "أم البواقي", "باتنة", "بجاية", "بسكرة", "بشار", "البليدة", "البويرة", "تمنراست", "تبسة", "تلمسان", "تيارت", "تيزي وزو", "الجزائر", "الجلفة", "جيجل", "سطيف", "سعيدة", "سكيكدة", "سيدي بلعباس", "عنابة", "قالمة", "قسنطينة", "المدية", "مستغانم", "المسيلة", "معسكر", "ورقلة", "وهران", "البيض", "إليزي", "برج بوعريريج", "بومرداس", "الطارف", "تندوف", "تيسمسيلت", "الوادي", "خنشلة", "سوق أهراس", "تيبازة", "ميلة", "عين الدفلى", "النعامة", "عين تيموشنت", "غرداية", "غليزان", "المغير", "المنيعة", "أولاد جلال", "برج باجي مختار", "بني عباس", "تيميمون", "تقرت", "جانت", "عين صالح", "عين قزام"];
+const CATS = ["A", "A1", "A2", "AM", "B", "B1", "BE", "C", "C1", "C1E", "CE", "D", "D1", "D1E", "DE"];
+const INIT = {
+  nomAr: "",
+  prenomAr: "",
+  nom: "",
+  prenom: "",
+  dateNaissance: "",
+  lieuNaissance: "",
+  wilayaNaissance: "",
+  nationalite: "جزائري",
+  nin: "",
+  telephone: "",
+  telephone2: "",
+  adresse: "",
+  numPermis: "",
+  dateDelivrance: "",
+  dateExpiration: "",
+  lieuDelivrance: "",
+  categories: [],
+  notes: ""
+};
+const inp = {
+  width: "100%",
+  padding: "10px 12px",
+  border: "1.5px solid #d1d5db",
+  borderRadius: 8,
+  fontSize: 14,
+  outline: "none",
+  boxSizing: "border-box",
+  fontFamily: "inherit",
+  background: "#fff"
+};
 async function doOCR(b64, mime) {
   const r = await fetch("/api/ocr", {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({ image_base64: b64, mime_type: mime })
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      image_base64: b64,
+      mime_type: mime
+    })
   });
   const d = await r.json();
   if (!d.success) throw new Error(d.error || "OCR failed");
   return d.data;
 }
-
-function StepBar({ step }) {
-  const steps = ["رفع الرخصة","مراجعة البيانات","تأكيد التسجيل"];
-  return (
-    <div style={{display:"flex",alignItems:"center",justifyContent:"center",marginBottom:24}}>
-      {steps.map((s,i) => (
-        <React.Fragment key={i}>
-          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5}}>
-            <div style={{width:34,height:34,borderRadius:"50%",background:i<step?"#1a6b3c":i===step?"#2d9e5f":"#e5e7eb",color:i<=step?"#fff":"#9ca3af",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:14}}>
-              {i < step ? "✓" : i+1}
-            </div>
-            <span style={{fontSize:11,color:i===step?"#1a6b3c":"#9ca3af",fontWeight:i===step?700:400,whiteSpace:"nowrap"}}>{s}</span>
-          </div>
-          {i < 2 && <div style={{width:48,height:2,background:i<step?"#1a6b3c":"#e5e7eb",margin:"0 4px",marginBottom:20}}/>}
-        </React.Fragment>
-      ))}
-    </div>
-  );
+function StepBar({
+  step
+}) {
+  const steps = ["رفع الرخصة", "مراجعة البيانات", "تأكيد التسجيل"];
+  return /*#__PURE__*/_jsxDEV("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 24
+    },
+    children: steps.map((s, i) => /*#__PURE__*/_jsxDEV(React.Fragment, {
+      children: [/*#__PURE__*/_jsxDEV("div", {
+        style: {
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 5
+        },
+        children: [/*#__PURE__*/_jsxDEV("div", {
+          style: {
+            width: 34,
+            height: 34,
+            borderRadius: "50%",
+            background: i < step ? "#1a6b3c" : i === step ? "#2d9e5f" : "#e5e7eb",
+            color: i <= step ? "#fff" : "#9ca3af",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: 700,
+            fontSize: 14
+          },
+          children: i < step ? "✓" : i + 1
+        }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
+          style: {
+            fontSize: 11,
+            color: i === step ? "#1a6b3c" : "#9ca3af",
+            fontWeight: i === step ? 700 : 400,
+            whiteSpace: "nowrap"
+          },
+          children: s
+        }, void 0, false)]
+      }, void 0, true), i < 2 && /*#__PURE__*/_jsxDEV("div", {
+        style: {
+          width: 48,
+          height: 2,
+          background: i < step ? "#1a6b3c" : "#e5e7eb",
+          margin: "0 4px",
+          marginBottom: 20
+        }
+      }, void 0, false)]
+    }, i, true))
+  }, void 0, false);
 }
-
-function Field({ label, required, hint, children }) {
-  return (
-    <div style={{marginBottom:13}}>
-      <label style={{display:"block",fontSize:13,fontWeight:600,color:"#374151",marginBottom:5}}>
-        {label}{required && <span style={{color:"#dc2626"}}> *</span>}
-      </label>
-      {children}
-      {hint && <p style={{fontSize:11,color:"#9ca3af",margin:"3px 0 0"}}>{hint}</p>}
-    </div>
-  );
+function Field({
+  label,
+  required,
+  hint,
+  children
+}) {
+  return /*#__PURE__*/_jsxDEV("div", {
+    style: {
+      marginBottom: 13
+    },
+    children: [/*#__PURE__*/_jsxDEV("label", {
+      style: {
+        display: "block",
+        fontSize: 13,
+        fontWeight: 600,
+        color: "#374151",
+        marginBottom: 5
+      },
+      children: [label, required && /*#__PURE__*/_jsxDEV("span", {
+        style: {
+          color: "#dc2626"
+        },
+        children: " *"
+      }, void 0, false)]
+    }, void 0, true), children, hint && /*#__PURE__*/_jsxDEV("p", {
+      style: {
+        fontSize: 11,
+        color: "#9ca3af",
+        margin: "3px 0 0"
+      },
+      children: hint
+    }, void 0, false)]
+  }, void 0, true);
 }
-
-function UploadStep({ onDone }) {
-  const [drag,setDrag] = useState(false);
-  const [loading,setLoading] = useState(false);
-  const [err,setErr] = useState("");
-  const [prev,setPrev] = useState(null);
+function UploadStep({
+  onDone
+}) {
+  const [drag, setDrag] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+  const [prev, setPrev] = useState(null);
   const ref = useRef();
-
-  const process = useCallback(async (file) => {
-    if (!file?.type.startsWith("image/")) { setErr("يرجى رفع صورة صالحة"); return; }
-    setErr(""); setLoading(true);
+  const process = useCallback(async file => {
+    if (!file?.type.startsWith("image/")) {
+      setErr("يرجى رفع صورة صالحة");
+      return;
+    }
+    setErr("");
+    setLoading(true);
     const reader = new FileReader();
-    reader.onload = async (e) => {
-      const url = e.target.result; setPrev(url);
+    reader.onload = async e => {
+      const url = e.target.result;
+      setPrev(url);
       const b64 = url.split(",")[1];
       try {
         const ex = await doOCR(b64, file.type);
-        onDone(ex||{}, b64, url);
+        onDone(ex || {}, b64, url);
       } catch {
         setErr("تعذّر الاستخراج — يمكنك الإدخال يدوياً.");
         onDone({}, b64, url);
@@ -91,389 +190,1124 @@ function UploadStep({ onDone }) {
     };
     reader.readAsDataURL(file);
   }, [onDone]);
-
-  return (
-    <div>
-      <div
-        onClick={() => !loading && ref.current?.click()}
-        onDragOver={e => { e.preventDefault(); setDrag(true); }}
-        onDragLeave={() => setDrag(false)}
-        onDrop={e => { e.preventDefault(); setDrag(false); process(e.dataTransfer.files[0]); }}
-        style={{border:`2px dashed ${drag?"#2d9e5f":"#d1d5db"}`,borderRadius:16,padding:"36px 16px",textAlign:"center",cursor:loading?"default":"pointer",background:drag?"#f0fdf4":"#fafafa"}}>
-        {prev
-          ? <img src={prev} style={{maxHeight:180,maxWidth:"100%",borderRadius:8,objectFit:"contain"}}/>
-          : <>
-              <div style={{fontSize:48,marginBottom:8}}>🪪</div>
-              <p style={{color:"#374151",fontWeight:600,margin:"0 0 4px"}}>ارفع صورة رخصة السياقة</p>
-              <p style={{color:"#9ca3af",fontSize:13}}>الرخصة الورقية أو البطاقة البيومترية</p>
-            </>
+  return /*#__PURE__*/_jsxDEV("div", {
+    children: [/*#__PURE__*/_jsxDEV("div", {
+      onClick: () => !loading && ref.current?.click(),
+      onDragOver: e => {
+        e.preventDefault();
+        setDrag(true);
+      },
+      onDragLeave: () => setDrag(false),
+      onDrop: e => {
+        e.preventDefault();
+        setDrag(false);
+        process(e.dataTransfer.files[0]);
+      },
+      style: {
+        border: `2px dashed ${drag ? "#2d9e5f" : "#d1d5db"}`,
+        borderRadius: 16,
+        padding: "36px 16px",
+        textAlign: "center",
+        cursor: loading ? "default" : "pointer",
+        background: drag ? "#f0fdf4" : "#fafafa"
+      },
+      children: [prev ? /*#__PURE__*/_jsxDEV("img", {
+        src: prev,
+        style: {
+          maxHeight: 180,
+          maxWidth: "100%",
+          borderRadius: 8,
+          objectFit: "contain"
         }
-        <input ref={ref} type="file" accept="image/*" style={{display:"none"}} onChange={e => process(e.target.files[0])}/>
-      </div>
-      {loading && (
-        <div style={{textAlign:"center",marginTop:20}}>
-          <div style={{display:"inline-block",width:38,height:38,border:"3px solid #e5e7eb",borderTopColor:"#2d9e5f",borderRadius:"50%",animation:"spin .8s linear infinite"}}/>
-          <p style={{color:"#2d9e5f",marginTop:8,fontWeight:600}}>جارٍ استخراج البيانات بالذكاء الاصطناعي...</p>
-        </div>
-      )}
-      {err && <div style={{marginTop:12,padding:"10px 14px",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,color:"#dc2626",fontSize:13}}>{err}</div>}
-      <div style={{marginTop:16,padding:"12px 14px",background:"#eff6ff",borderRadius:10,fontSize:13,color:"#1d4ed8"}}>
-        💡 تأكد من وضوح الصورة — يمكنك تصحيح أي بيانات في الخطوة التالية.
-      </div>
-    </div>
-  );
+      }, void 0, false) : /*#__PURE__*/_jsxDEV(_Fragment, {
+        children: [/*#__PURE__*/_jsxDEV("div", {
+          style: {
+            fontSize: 48,
+            marginBottom: 8
+          },
+          children: "🪪"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
+          style: {
+            color: "#374151",
+            fontWeight: 600,
+            margin: "0 0 4px"
+          },
+          children: "ارفع صورة رخصة السياقة"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
+          style: {
+            color: "#9ca3af",
+            fontSize: 13
+          },
+          children: "الرخصة الورقية أو البطاقة البيومترية"
+        }, void 0, false)]
+      }, void 0, true), /*#__PURE__*/_jsxDEV("input", {
+        ref: ref,
+        type: "file",
+        accept: "image/*",
+        style: {
+          display: "none"
+        },
+        onChange: e => process(e.target.files[0])
+      }, void 0, false)]
+    }, void 0, true), loading && /*#__PURE__*/_jsxDEV("div", {
+      style: {
+        textAlign: "center",
+        marginTop: 20
+      },
+      children: [/*#__PURE__*/_jsxDEV("div", {
+        style: {
+          display: "inline-block",
+          width: 38,
+          height: 38,
+          border: "3px solid #e5e7eb",
+          borderTopColor: "#2d9e5f",
+          borderRadius: "50%",
+          animation: "spin .8s linear infinite"
+        }
+      }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
+        style: {
+          color: "#2d9e5f",
+          marginTop: 8,
+          fontWeight: 600
+        },
+        children: "جارٍ استخراج البيانات بالذكاء الاصطناعي..."
+      }, void 0, false)]
+    }, void 0, true), err && /*#__PURE__*/_jsxDEV("div", {
+      style: {
+        marginTop: 12,
+        padding: "10px 14px",
+        background: "#fef2f2",
+        border: "1px solid #fecaca",
+        borderRadius: 10,
+        color: "#dc2626",
+        fontSize: 13
+      },
+      children: err
+    }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+      style: {
+        marginTop: 16,
+        padding: "12px 14px",
+        background: "#eff6ff",
+        borderRadius: 10,
+        fontSize: 13,
+        color: "#1d4ed8"
+      },
+      children: "💡 تأكد من وضوح الصورة — يمكنك تصحيح أي بيانات في الخطوة التالية."
+    }, void 0, false)]
+  }, void 0, true);
 }
-
-function ReviewStep({ form, setForm, prev }) {
-  const upd = (k,v) => setForm(f => ({...f,[k]:v}));
+function ReviewStep({
+  form,
+  setForm,
+  prev
+}) {
+  const upd = (k, v) => setForm(f => ({
+    ...f,
+    [k]: v
+  }));
   const tog = cat => {
-    const c = form.categories.includes(cat) ? form.categories.filter(x=>x!==cat) : [...form.categories,cat];
+    const c = form.categories.includes(cat) ? form.categories.filter(x => x !== cat) : [...form.categories, cat];
     upd("categories", c);
   };
-  return (
-    <div>
-      {prev && (
-        <div style={{textAlign:"center",marginBottom:16}}>
-          <img src={prev} style={{maxHeight:100,borderRadius:8,border:"1px solid #e5e7eb"}}/>
-          <p style={{color:"#6b7280",fontSize:12,marginTop:4}}>راجع البيانات وصحح ما يلزم</p>
-        </div>
-      )}
-      <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:"10px 14px",marginBottom:18,fontSize:13,color:"#15803d"}}>
-        ✅ تم الاستخراج تلقائياً — راجع قبل التأكيد
-      </div>
-
-      <h3 style={{fontSize:13,fontWeight:700,color:"#1a6b3c",borderBottom:"2px solid #d1fae5",paddingBottom:6,marginBottom:12}}>🪪 بيانات الهوية</h3>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
-        <Field label="اللقب (عربي)" required><input style={inp} value={form.nomAr} onChange={e=>upd("nomAr",e.target.value)} placeholder="بن علي" dir="rtl"/></Field>
-        <Field label="الاسم (عربي)" required><input style={inp} value={form.prenomAr} onChange={e=>upd("prenomAr",e.target.value)} placeholder="محمد" dir="rtl"/></Field>
-        <Field label="Nom"><input style={inp} value={form.nom} onChange={e=>upd("nom",e.target.value)} placeholder="BEN ALI"/></Field>
-        <Field label="Prenom"><input style={inp} value={form.prenom} onChange={e=>upd("prenom",e.target.value)} placeholder="Mohamed"/></Field>
-        <Field label="تاريخ الميلاد" required><input type="date" style={inp} value={form.dateNaissance} onChange={e=>upd("dateNaissance",e.target.value)}/></Field>
-        <Field label="مكان الميلاد" required><input style={inp} value={form.lieuNaissance} onChange={e=>upd("lieuNaissance",e.target.value)} placeholder="وهران" dir="rtl"/></Field>
-      </div>
-      <Field label="ولاية الميلاد">
-        <select style={inp} value={form.wilayaNaissance} onChange={e=>upd("wilayaNaissance",e.target.value)} dir="rtl">
-          <option value="">-- اختر --</option>
-          {WILAYAS.map(w=><option key={w}>{w}</option>)}
-        </select>
-      </Field>
-      <Field label="رقم التعريف الوطني (NIN)" required hint="18 رقماً">
-        <input style={inp} value={form.nin} onChange={e=>upd("nin",e.target.value.replace(/\D/g,"").slice(0,18))} placeholder="100XXXXXXXXXXXXXXX" maxLength={18}/>
-      </Field>
-
-      <h3 style={{fontSize:13,fontWeight:700,color:"#1a6b3c",borderBottom:"2px solid #d1fae5",paddingBottom:6,marginBottom:12,marginTop:20}}>📞 التواصل</h3>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
-        <Field label="رقم الهاتف" required><input style={inp} value={form.telephone} onChange={e=>upd("telephone",e.target.value)} placeholder="05XXXXXXXX" maxLength={10}/></Field>
-        <Field label="هاتف ثانٍ"><input style={inp} value={form.telephone2} onChange={e=>upd("telephone2",e.target.value)} placeholder="06XXXXXXXX" maxLength={10}/></Field>
-      </div>
-      <Field label="العنوان"><input style={inp} value={form.adresse} onChange={e=>upd("adresse",e.target.value)} placeholder="الشارع، الحي، البلدية" dir="rtl"/></Field>
-
-      <h3 style={{fontSize:13,fontWeight:700,color:"#1a6b3c",borderBottom:"2px solid #d1fae5",paddingBottom:6,marginBottom:12,marginTop:20}}>🚗 رخصة السياقة</h3>
-      <Field label="رقم الرخصة" required><input style={inp} value={form.numPermis} onChange={e=>upd("numPermis",e.target.value)}/></Field>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
-        <Field label="تاريخ الإصدار"><input type="date" style={inp} value={form.dateDelivrance} onChange={e=>upd("dateDelivrance",e.target.value)}/></Field>
-        <Field label="تاريخ الانتهاء"><input type="date" style={inp} value={form.dateExpiration} onChange={e=>upd("dateExpiration",e.target.value)}/></Field>
-      </div>
-      <Field label="مكان الإصدار"><input style={inp} value={form.lieuDelivrance} onChange={e=>upd("lieuDelivrance",e.target.value)} placeholder="مديرية النقل" dir="rtl"/></Field>
-      <Field label="فئات الرخصة" required>
-        <div style={{display:"flex",flexWrap:"wrap",gap:7,marginTop:4}}>
-          {CATS.map(c => (
-            <button key={c} onClick={()=>tog(c)} style={{padding:"6px 12px",borderRadius:20,fontSize:13,fontWeight:600,cursor:"pointer",border:`2px solid ${form.categories.includes(c)?"#1a6b3c":"#d1d5db"}`,background:form.categories.includes(c)?"#1a6b3c":"#fff",color:form.categories.includes(c)?"#fff":"#374151"}}>{c}</button>
-          ))}
-        </div>
-      </Field>
-      <Field label="ملاحظات"><textarea style={{...inp,minHeight:68,resize:"vertical"}} value={form.notes} onChange={e=>upd("notes",e.target.value)} dir="rtl"/></Field>
-    </div>
-  );
+  return /*#__PURE__*/_jsxDEV("div", {
+    children: [prev && /*#__PURE__*/_jsxDEV("div", {
+      style: {
+        textAlign: "center",
+        marginBottom: 16
+      },
+      children: [/*#__PURE__*/_jsxDEV("img", {
+        src: prev,
+        style: {
+          maxHeight: 100,
+          borderRadius: 8,
+          border: "1px solid #e5e7eb"
+        }
+      }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
+        style: {
+          color: "#6b7280",
+          fontSize: 12,
+          marginTop: 4
+        },
+        children: "راجع البيانات وصحح ما يلزم"
+      }, void 0, false)]
+    }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+      style: {
+        background: "#f0fdf4",
+        border: "1px solid #bbf7d0",
+        borderRadius: 10,
+        padding: "10px 14px",
+        marginBottom: 18,
+        fontSize: 13,
+        color: "#15803d"
+      },
+      children: "✅ تم الاستخراج تلقائياً — راجع قبل التأكيد"
+    }, void 0, false), /*#__PURE__*/_jsxDEV("h3", {
+      style: {
+        fontSize: 13,
+        fontWeight: 700,
+        color: "#1a6b3c",
+        borderBottom: "2px solid #d1fae5",
+        paddingBottom: 6,
+        marginBottom: 12
+      },
+      children: "🪪 بيانات الهوية"
+    }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+      style: {
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: "0 12px"
+      },
+      children: [/*#__PURE__*/_jsxDEV(Field, {
+        label: "اللقب (عربي)",
+        required: true,
+        children: /*#__PURE__*/_jsxDEV("input", {
+          style: inp,
+          value: form.nomAr,
+          onChange: e => upd("nomAr", e.target.value),
+          placeholder: "بن علي",
+          dir: "rtl"
+        }, void 0, false)
+      }, void 0, false), /*#__PURE__*/_jsxDEV(Field, {
+        label: "الاسم (عربي)",
+        required: true,
+        children: /*#__PURE__*/_jsxDEV("input", {
+          style: inp,
+          value: form.prenomAr,
+          onChange: e => upd("prenomAr", e.target.value),
+          placeholder: "محمد",
+          dir: "rtl"
+        }, void 0, false)
+      }, void 0, false), /*#__PURE__*/_jsxDEV(Field, {
+        label: "Nom",
+        children: /*#__PURE__*/_jsxDEV("input", {
+          style: inp,
+          value: form.nom,
+          onChange: e => upd("nom", e.target.value),
+          placeholder: "BEN ALI"
+        }, void 0, false)
+      }, void 0, false), /*#__PURE__*/_jsxDEV(Field, {
+        label: "Prenom",
+        children: /*#__PURE__*/_jsxDEV("input", {
+          style: inp,
+          value: form.prenom,
+          onChange: e => upd("prenom", e.target.value),
+          placeholder: "Mohamed"
+        }, void 0, false)
+      }, void 0, false), /*#__PURE__*/_jsxDEV(Field, {
+        label: "تاريخ الميلاد",
+        required: true,
+        children: /*#__PURE__*/_jsxDEV("input", {
+          type: "date",
+          style: inp,
+          value: form.dateNaissance,
+          onChange: e => upd("dateNaissance", e.target.value)
+        }, void 0, false)
+      }, void 0, false), /*#__PURE__*/_jsxDEV(Field, {
+        label: "مكان الميلاد",
+        required: true,
+        children: /*#__PURE__*/_jsxDEV("input", {
+          style: inp,
+          value: form.lieuNaissance,
+          onChange: e => upd("lieuNaissance", e.target.value),
+          placeholder: "وهران",
+          dir: "rtl"
+        }, void 0, false)
+      }, void 0, false)]
+    }, void 0, true), /*#__PURE__*/_jsxDEV(Field, {
+      label: "ولاية الميلاد",
+      children: /*#__PURE__*/_jsxDEV("select", {
+        style: inp,
+        value: form.wilayaNaissance,
+        onChange: e => upd("wilayaNaissance", e.target.value),
+        dir: "rtl",
+        children: [/*#__PURE__*/_jsxDEV("option", {
+          value: "",
+          children: "-- اختر --"
+        }, void 0, false), WILAYAS.map(w => /*#__PURE__*/_jsxDEV("option", {
+          children: w
+        }, w, false))]
+      }, void 0, true)
+    }, void 0, false), /*#__PURE__*/_jsxDEV(Field, {
+      label: "رقم التعريف الوطني (NIN)",
+      required: true,
+      hint: "18 رقماً",
+      children: /*#__PURE__*/_jsxDEV("input", {
+        style: inp,
+        value: form.nin,
+        onChange: e => upd("nin", e.target.value.replace(/\D/g, "").slice(0, 18)),
+        placeholder: "100XXXXXXXXXXXXXXX",
+        maxLength: 18
+      }, void 0, false)
+    }, void 0, false), /*#__PURE__*/_jsxDEV("h3", {
+      style: {
+        fontSize: 13,
+        fontWeight: 700,
+        color: "#1a6b3c",
+        borderBottom: "2px solid #d1fae5",
+        paddingBottom: 6,
+        marginBottom: 12,
+        marginTop: 20
+      },
+      children: "📞 التواصل"
+    }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+      style: {
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: "0 12px"
+      },
+      children: [/*#__PURE__*/_jsxDEV(Field, {
+        label: "رقم الهاتف",
+        required: true,
+        children: /*#__PURE__*/_jsxDEV("input", {
+          style: inp,
+          value: form.telephone,
+          onChange: e => upd("telephone", e.target.value),
+          placeholder: "05XXXXXXXX",
+          maxLength: 10
+        }, void 0, false)
+      }, void 0, false), /*#__PURE__*/_jsxDEV(Field, {
+        label: "هاتف ثانٍ",
+        children: /*#__PURE__*/_jsxDEV("input", {
+          style: inp,
+          value: form.telephone2,
+          onChange: e => upd("telephone2", e.target.value),
+          placeholder: "06XXXXXXXX",
+          maxLength: 10
+        }, void 0, false)
+      }, void 0, false)]
+    }, void 0, true), /*#__PURE__*/_jsxDEV(Field, {
+      label: "العنوان",
+      children: /*#__PURE__*/_jsxDEV("input", {
+        style: inp,
+        value: form.adresse,
+        onChange: e => upd("adresse", e.target.value),
+        placeholder: "الشارع، الحي، البلدية",
+        dir: "rtl"
+      }, void 0, false)
+    }, void 0, false), /*#__PURE__*/_jsxDEV("h3", {
+      style: {
+        fontSize: 13,
+        fontWeight: 700,
+        color: "#1a6b3c",
+        borderBottom: "2px solid #d1fae5",
+        paddingBottom: 6,
+        marginBottom: 12,
+        marginTop: 20
+      },
+      children: "🚗 رخصة السياقة"
+    }, void 0, false), /*#__PURE__*/_jsxDEV(Field, {
+      label: "رقم الرخصة",
+      required: true,
+      children: /*#__PURE__*/_jsxDEV("input", {
+        style: inp,
+        value: form.numPermis,
+        onChange: e => upd("numPermis", e.target.value)
+      }, void 0, false)
+    }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+      style: {
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: "0 12px"
+      },
+      children: [/*#__PURE__*/_jsxDEV(Field, {
+        label: "تاريخ الإصدار",
+        children: /*#__PURE__*/_jsxDEV("input", {
+          type: "date",
+          style: inp,
+          value: form.dateDelivrance,
+          onChange: e => upd("dateDelivrance", e.target.value)
+        }, void 0, false)
+      }, void 0, false), /*#__PURE__*/_jsxDEV(Field, {
+        label: "تاريخ الانتهاء",
+        children: /*#__PURE__*/_jsxDEV("input", {
+          type: "date",
+          style: inp,
+          value: form.dateExpiration,
+          onChange: e => upd("dateExpiration", e.target.value)
+        }, void 0, false)
+      }, void 0, false)]
+    }, void 0, true), /*#__PURE__*/_jsxDEV(Field, {
+      label: "مكان الإصدار",
+      children: /*#__PURE__*/_jsxDEV("input", {
+        style: inp,
+        value: form.lieuDelivrance,
+        onChange: e => upd("lieuDelivrance", e.target.value),
+        placeholder: "مديرية النقل",
+        dir: "rtl"
+      }, void 0, false)
+    }, void 0, false), /*#__PURE__*/_jsxDEV(Field, {
+      label: "فئات الرخصة",
+      required: true,
+      children: /*#__PURE__*/_jsxDEV("div", {
+        style: {
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 7,
+          marginTop: 4
+        },
+        children: CATS.map(c => /*#__PURE__*/_jsxDEV("button", {
+          onClick: () => tog(c),
+          style: {
+            padding: "6px 12px",
+            borderRadius: 20,
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: "pointer",
+            border: `2px solid ${form.categories.includes(c) ? "#1a6b3c" : "#d1d5db"}`,
+            background: form.categories.includes(c) ? "#1a6b3c" : "#fff",
+            color: form.categories.includes(c) ? "#fff" : "#374151"
+          },
+          children: c
+        }, c, false))
+      }, void 0, false)
+    }, void 0, false), /*#__PURE__*/_jsxDEV(Field, {
+      label: "ملاحظات",
+      children: /*#__PURE__*/_jsxDEV("textarea", {
+        style: {
+          ...inp,
+          minHeight: 68,
+          resize: "vertical"
+        },
+        value: form.notes,
+        onChange: e => upd("notes", e.target.value),
+        dir: "rtl"
+      }, void 0, false)
+    }, void 0, false)]
+  }, void 0, true);
 }
-
-function ConfirmStep({ form, prev }) {
-  const row = (l,v) => v ? (
-    <div key={l} style={{display:"flex",padding:"7px 0",borderBottom:"1px solid #f3f4f6",gap:10}}>
-      <span style={{color:"#6b7280",fontSize:13,minWidth:130}}>{l}</span>
-      <span style={{color:"#111827",fontSize:13,fontWeight:500}}>{v}</span>
-    </div>
-  ) : null;
-
+function ConfirmStep({
+  form,
+  prev
+}) {
+  const row = (l, v) => v ? /*#__PURE__*/_jsxDEV("div", {
+    style: {
+      display: "flex",
+      padding: "7px 0",
+      borderBottom: "1px solid #f3f4f6",
+      gap: 10
+    },
+    children: [/*#__PURE__*/_jsxDEV("span", {
+      style: {
+        color: "#6b7280",
+        fontSize: 13,
+        minWidth: 130
+      },
+      children: l
+    }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
+      style: {
+        color: "#111827",
+        fontSize: 13,
+        fontWeight: 500
+      },
+      children: v
+    }, void 0, false)]
+  }, l, true) : null;
   function printReceipt() {
     const now = new Date().toLocaleString("ar-DZ");
     const cats = form.categories.join(" — ") || "—";
-    const html = `<!DOCTYPE html><html dir="rtl" lang="ar">
-<head><meta charset="UTF-8"><title>وصل التسجيل</title>
-<style>
-  body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; color: #111; direction: rtl; }
-  .header { text-align: center; border-bottom: 3px solid #1a6b3c; padding-bottom: 14px; margin-bottom: 18px; }
-  .header h1 { color: #1a6b3c; font-size: 20px; margin: 0 0 4px; }
-  .header p { color: #6b7280; font-size: 13px; margin: 0; }
-  .badge { display: inline-block; background: #d1fae5; color: #1a6b3c; padding: 4px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; margin-top: 8px; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
-  td { padding: 8px 10px; font-size: 14px; border-bottom: 1px solid #f3f4f6; }
-  td:first-child { color: #6b7280; width: 140px; }
-  td:last-child { font-weight: 600; }
-  .photo { text-align: center; margin-bottom: 16px; }
-  .photo img { max-height: 100px; border-radius: 8px; border: 1px solid #e5e7eb; }
-  .footer { text-align: center; font-size: 12px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 12px; margin-top: 10px; }
-  @media print { body { padding: 10px; } }
-</style></head><body>
-<div class="header">
-  <h1>🚕 وصل تسجيل — مدرسة تعليم السياقة</h1>
-  <p>تاريخ التسجيل: ${now}</p>
-  <span class="badge">✅ تم القبول</span>
-</div>
-${prev ? `<div class="photo"><img src="${prev}" alt="صورة الرخصة"/></div>` : ""}
-<table>
-  <tr><td>الاسم الكامل (عربي)</td><td>${form.nomAr || ""} ${form.prenomAr || ""}</td></tr>
-  <tr><td>Nom & Prénom</td><td>${form.nom || ""} ${form.prenom || ""}</td></tr>
-  <tr><td>رقم التعريف (NIN)</td><td style="letter-spacing:1px">${form.nin || "—"}</td></tr>
-  <tr><td>تاريخ الميلاد</td><td>${form.dateNaissance || "—"}</td></tr>
-  <tr><td>مكان الميلاد</td><td>${form.lieuNaissance || "—"}${form.wilayaNaissance ? " — " + form.wilayaNaissance : ""}</td></tr>
-  <tr><td>رقم الهاتف</td><td>${form.telephone || "—"}${form.telephone2 ? " / " + form.telephone2 : ""}</td></tr>
-  <tr><td>العنوان</td><td>${form.adresse || "—"}</td></tr>
-  <tr><td>رقم الرخصة</td><td>${form.numPermis || "—"}</td></tr>
-  <tr><td>تاريخ الإصدار</td><td>${form.dateDelivrance || "—"}</td></tr>
-  <tr><td>تاريخ الانتهاء</td><td>${form.dateExpiration || "—"}</td></tr>
-  <tr><td>مكان الإصدار</td><td>${form.lieuDelivrance || "—"}</td></tr>
-  <tr><td>فئات الرخصة</td><td>${cats}</td></tr>
-  ${form.notes ? `<tr><td>ملاحظات</td><td>${form.notes}</td></tr>` : ""}
-</table>
-<div class="footer">هذا الوصل دليل على استلام ملف التسجيل — يُحتفظ به للمراجعة</div>
-<script>window.onload=()=>{window.print();}</script>
-</body></html>`;
+    const photoRow = prev ? '<div class="photo"><img src="' + prev + '" alt="صورة الرخصة"/></div>' : "";
+    const notesRow = form.notes ? "<tr><td>ملاحظات</td><td>" + form.notes + "</td></tr>" : "";
+    const lieuNaiss = (form.lieuNaissance || "—") + (form.wilayaNaissance ? " — " + form.wilayaNaissance : "");
+    const tel = (form.telephone || "—") + (form.telephone2 ? " / " + form.telephone2 : "");
+    const html = "<!DOCTYPE html><html dir='rtl' lang='ar'><head><meta charset='UTF-8'><title>وصل التسجيل</title>" + "<style>body{font-family:'Segoe UI',Arial,sans-serif;margin:0;padding:20px;color:#111;direction:rtl}" + ".header{text-align:center;border-bottom:3px solid #1a6b3c;padding-bottom:14px;margin-bottom:18px}" + ".header h1{color:#1a6b3c;font-size:20px;margin:0 0 4px}.header p{color:#6b7280;font-size:13px;margin:0}" + ".badge{display:inline-block;background:#d1fae5;color:#1a6b3c;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:700;margin-top:8px}" + "table{width:100%;border-collapse:collapse;margin-bottom:18px}" + "td{padding:8px 10px;font-size:14px;border-bottom:1px solid #f3f4f6}" + "td:first-child{color:#6b7280;width:140px}td:last-child{font-weight:600}" + ".photo{text-align:center;margin-bottom:16px}.photo img{max-height:100px;border-radius:8px;border:1px solid #e5e7eb}" + ".footer{text-align:center;font-size:12px;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:12px;margin-top:10px}" + "@media print{body{padding:10px}}</style></head><body>" + "<div class='header'><h1>🚕 وصل تسجيل — مدرسة تعليم السياقة</h1>" + "<p>تاريخ التسجيل: " + now + "</p><span class='badge'>✅ تم القبول</span></div>" + photoRow + "<table>" + "<tr><td>الاسم الكامل (عربي)</td><td>" + (form.nomAr || "") + " " + (form.prenomAr || "") + "</td></tr>" + "<tr><td>Nom & Prénom</td><td>" + (form.nom || "") + " " + (form.prenom || "") + "</td></tr>" + "<tr><td>رقم التعريف (NIN)</td><td>" + (form.nin || "—") + "</td></tr>" + "<tr><td>تاريخ الميلاد</td><td>" + (form.dateNaissance || "—") + "</td></tr>" + "<tr><td>مكان الميلاد</td><td>" + lieuNaiss + "</td></tr>" + "<tr><td>رقم الهاتف</td><td>" + tel + "</td></tr>" + "<tr><td>العنوان</td><td>" + (form.adresse || "—") + "</td></tr>" + "<tr><td>رقم الرخصة</td><td>" + (form.numPermis || "—") + "</td></tr>" + "<tr><td>تاريخ الإصدار</td><td>" + (form.dateDelivrance || "—") + "</td></tr>" + "<tr><td>تاريخ الانتهاء</td><td>" + (form.dateExpiration || "—") + "</td></tr>" + "<tr><td>مكان الإصدار</td><td>" + (form.lieuDelivrance || "—") + "</td></tr>" + "<tr><td>فئات الرخصة</td><td>" + cats + "</td></tr>" + notesRow + "</table>" + "<div class='footer'>هذا الوصل دليل على استلام ملف التسجيل — يُحتفظ به للمراجعة</div>" + "<scr" + "ipt>window.onload=function(){window.print();}<\/scr" + "ipt>" + "</body></html>";
     const w = window.open("", "_blank", "width=700,height=900");
     w.document.write(html);
     w.document.close();
   }
-
-  return (
-    <div>
-      <div style={{textAlign:"center",marginBottom:20}}>
-        <div style={{width:60,height:60,borderRadius:"50%",background:"#d1fae5",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:26}}>✅</div>
-        <h3 style={{color:"#1a6b3c",marginTop:10,marginBottom:4}}>تم التسجيل بنجاح</h3>
-        <p style={{color:"#6b7280",fontSize:14}}>سيتم التواصل معك قريباً</p>
-      </div>
-      <div style={{background:"#f9fafb",borderRadius:12,padding:14}}>
-        {prev && <img src={prev} style={{width:"100%",maxHeight:80,objectFit:"contain",borderRadius:8,marginBottom:12}}/>}
-        {row("الاسم الكامل", `${form.nomAr} ${form.prenomAr}`)}
-        {row("NIN", form.nin)}
-        {row("تاريخ الميلاد", form.dateNaissance)}
-        {row("رقم الهاتف", form.telephone)}
-        {row("رقم الرخصة", form.numPermis)}
-        {row("الفئات", form.categories.join(" — "))}
-      </div>
-      <button onClick={printReceipt} style={{
-        marginTop:18, width:"100%", padding:"12px 0",
-        background:"#1a6b3c", color:"#fff", border:"none",
-        borderRadius:10, fontSize:15, fontWeight:700,
-        cursor:"pointer", letterSpacing:0.5
-      }}>🖨️ طباعة وصل التسجيل</button>
-    </div>
-  );
+  return /*#__PURE__*/_jsxDEV("div", {
+    children: [/*#__PURE__*/_jsxDEV("div", {
+      style: {
+        textAlign: "center",
+        marginBottom: 20
+      },
+      children: [/*#__PURE__*/_jsxDEV("div", {
+        style: {
+          width: 60,
+          height: 60,
+          borderRadius: "50%",
+          background: "#d1fae5",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 26
+        },
+        children: "✅"
+      }, void 0, false), /*#__PURE__*/_jsxDEV("h3", {
+        style: {
+          color: "#1a6b3c",
+          marginTop: 10,
+          marginBottom: 4
+        },
+        children: "تم التسجيل بنجاح"
+      }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
+        style: {
+          color: "#6b7280",
+          fontSize: 14
+        },
+        children: "سيتم التواصل معك قريباً"
+      }, void 0, false)]
+    }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+      style: {
+        background: "#f9fafb",
+        borderRadius: 12,
+        padding: 14
+      },
+      children: [prev && /*#__PURE__*/_jsxDEV("img", {
+        src: prev,
+        style: {
+          width: "100%",
+          maxHeight: 80,
+          objectFit: "contain",
+          borderRadius: 8,
+          marginBottom: 12
+        }
+      }, void 0, false), row("الاسم الكامل", `${form.nomAr} ${form.prenomAr}`), row("NIN", form.nin), row("تاريخ الميلاد", form.dateNaissance), row("رقم الهاتف", form.telephone), row("رقم الرخصة", form.numPermis), row("الفئات", form.categories.join(" — "))]
+    }, void 0, true), /*#__PURE__*/_jsxDEV("button", {
+      onClick: printReceipt,
+      style: {
+        marginTop: 18,
+        width: "100%",
+        padding: "12px 0",
+        background: "#1a6b3c",
+        color: "#fff",
+        border: "none",
+        borderRadius: 10,
+        fontSize: 15,
+        fontWeight: 700,
+        cursor: "pointer",
+        letterSpacing: 0.5
+      },
+      children: "🖨️ طباعة وصل التسجيل"
+    }, void 0, false)]
+  }, void 0, true);
 }
-
-function AdminPanel({ onClose }) {
-  const [data,setData] = useState({total:0,candidates:[]});
-  const [stats,setStats] = useState({});
-  const [search,setSearch] = useState("");
-  const [statut,setStatut] = useState("");
-  const [sel,setSel] = useState(null);
-  const [loading,setLoading] = useState(false);
-
+function AdminPanel({
+  onClose
+}) {
+  const [data, setData] = useState({
+    total: 0,
+    candidates: []
+  });
+  const [stats, setStats] = useState({});
+  const [search, setSearch] = useState("");
+  const [statut, setStatut] = useState("");
+  const [sel, setSel] = useState(null);
+  const [loading, setLoading] = useState(false);
   const load = async () => {
     setLoading(true);
     try {
-      const [c,s] = await Promise.all([
-        fetch(`${API}/admin/candidates?q=${encodeURIComponent(search)}&statut=${statut}&limit=100`),
-        fetch(`${API}/stats`)
-      ]);
-      setData(await c.json()); setStats(await s.json());
-    } catch(e) { console.error(e); }
+      const [c, s] = await Promise.all([fetch(`${API}/admin/candidates?q=${encodeURIComponent(search)}&statut=${statut}&limit=100`), fetch(`${API}/stats`)]);
+      setData(await c.json());
+      setStats(await s.json());
+    } catch (e) {
+      console.error(e);
+    }
     setLoading(false);
   };
-
-  useEffect(() => { load(); }, [search, statut]);
-
-  const updSt = async (id,st) => {
-    await fetch(`${API}/admin/candidates/${id}`, {method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({statut:st})});
-    load(); setSel(s => s ? {...s,statut:st} : null);
+  useEffect(() => {
+    load();
+  }, [search, statut]);
+  const updSt = async (id, st) => {
+    await fetch(`${API}/admin/candidates/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        statut: st
+      })
+    });
+    load();
+    setSel(s => s ? {
+      ...s,
+      statut: st
+    } : null);
   };
-
-  const stColor = s => ({جديد:"#3b82f6",مقبول:"#22c55e",مرفوض:"#ef4444"}[s]||"#9ca3af");
-
-  return (
-    <div style={{position:"fixed",inset:0,background:"#fff",zIndex:1000,overflow:"auto",padding:16,fontFamily:"inherit"}} dir="rtl">
-      <div style={{maxWidth:960,margin:"0 auto"}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
-          <h2 style={{margin:0,color:"#1a6b3c",fontSize:17}}>🗂️ لوحة إدارة التسجيلات</h2>
-          <button onClick={onClose} style={{padding:"6px 13px",borderRadius:8,border:"1px solid #d1d5db",background:"#fff",cursor:"pointer"}}>✕ إغلاق</button>
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:18}}>
-          {[["إجمالي",stats.total,"#1a6b3c"],["اليوم",stats.today,"#2d9e5f"],["جديد",stats.jadid,"#3b82f6"],["مقبول",stats.maqboul,"#22c55e"]].map(([l,v,c]) => (
-            <div key={l} style={{background:"#fff",border:`1px solid ${c}22`,borderRadius:10,padding:"10px 14px",boxShadow:"0 1px 4px rgba(0,0,0,.05)"}}>
-              <div style={{fontSize:22,fontWeight:700,color:c}}>{v??"-"}</div>
-              <div style={{fontSize:12,color:"#6b7280"}}>{l}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{display:"flex",gap:10,marginBottom:14}}>
-          <input style={{...inp,flex:1}} placeholder="بحث بالاسم، NIN، الهاتف..." value={search} onChange={e=>setSearch(e.target.value)}/>
-          <select style={{...inp,width:130}} value={statut} onChange={e=>setStatut(e.target.value)}>
-            <option value="">كل الحالات</option><option>جديد</option><option>مقبول</option><option>مرفوض</option>
-          </select>
-          <a href={`${API}/admin/export/csv`} style={{padding:"10px 14px",background:"#1a6b3c",color:"#fff",borderRadius:8,textDecoration:"none",fontWeight:600,fontSize:13,display:"flex",alignItems:"center"}}>⬇ CSV</a>
-        </div>
-
-        {sel && (
-          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-            <div style={{background:"#fff",borderRadius:16,padding:20,maxWidth:460,width:"100%",maxHeight:"85vh",overflow:"auto"}} dir="rtl">
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-                <h3 style={{margin:0}}>{sel.nom_ar} {sel.prenom_ar}</h3>
-                <button onClick={()=>setSel(null)} style={{border:"none",background:"none",fontSize:18,cursor:"pointer"}}>✕</button>
-              </div>
-              {sel.image_path && <img src={`${API}/admin/images/${sel.image_path}`} style={{width:"100%",borderRadius:8,marginBottom:12,maxHeight:150,objectFit:"contain",border:"1px solid #e5e7eb"}}/>}
-              {[["NIN",sel.nin],["اللقب",sel.nom_ar],["الاسم",sel.prenom_ar],["Nom",sel.nom_fr],["تاريخ الميلاد",sel.date_naissance],["مكان الميلاد",sel.lieu_naissance],["الهاتف",sel.telephone],["رقم الرخصة",sel.num_permis],["الفئات",(sel.categories||[]).join(" / ")],["تاريخ التسجيل",sel.created_at]].filter(([,v])=>v).map(([l,v]) => (
-                <div key={l} style={{display:"flex",gap:10,padding:"6px 0",borderBottom:"1px solid #f3f4f6"}}>
-                  <span style={{color:"#6b7280",fontSize:13,minWidth:110}}>{l}</span>
-                  <span style={{fontSize:13,fontWeight:500}}>{v}</span>
-                </div>
-              ))}
-              <div style={{marginTop:14,display:"flex",gap:8}}>
-                {["جديد","مقبول","مرفوض"].map(s => (
-                  <button key={s} onClick={()=>updSt(sel.id,s)} style={{flex:1,padding:"7px 0",borderRadius:8,border:`2px solid ${stColor(s)}`,background:sel.statut===s?stColor(s):"#fff",color:sel.statut===s?"#fff":stColor(s),cursor:"pointer",fontWeight:600,fontSize:13}}>{s}</button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {loading && <div style={{textAlign:"center",padding:20,color:"#6b7280"}}>جارٍ التحميل...</div>}
-        <div style={{overflowX:"auto",borderRadius:12,border:"1px solid #e5e7eb"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-            <thead>
-              <tr style={{background:"#f0fdf4"}}>
-                {["#","الاسم","NIN","الهاتف","الرخصة","الفئات","الحالة","التسجيل",""].map(h => (
-                  <th key={h} style={{padding:"9px 11px",textAlign:"right",color:"#374151",fontWeight:600,borderBottom:"2px solid #d1fae5",whiteSpace:"nowrap"}}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {!data.candidates?.length
-                ? <tr><td colSpan={9} style={{textAlign:"center",padding:40,color:"#9ca3af"}}>لا توجد نتائج</td></tr>
-                : data.candidates.map((r,i) => (
-                  <tr key={r.id} onClick={()=>setSel(r)} style={{background:i%2===0?"#fff":"#fafafa",cursor:"pointer"}}
-                    onMouseEnter={e=>e.currentTarget.style.background="#f0fdf4"}
-                    onMouseLeave={e=>e.currentTarget.style.background=i%2===0?"#fff":"#fafafa"}>
-                    <td style={{padding:"8px 11px",color:"#9ca3af"}}>{r.id}</td>
-                    <td style={{padding:"8px 11px",fontWeight:600}}>{r.nom_ar} {r.prenom_ar}</td>
-                    <td style={{padding:"8px 11px",fontFamily:"monospace",fontSize:12}}>{r.nin}</td>
-                    <td style={{padding:"8px 11px"}}>{r.telephone}</td>
-                    <td style={{padding:"8px 11px",fontFamily:"monospace"}}>{r.num_permis}</td>
-                    <td style={{padding:"8px 11px"}}>{(r.categories||[]).join(" ")}</td>
-                    <td style={{padding:"8px 11px"}}>
-                      <span style={{padding:"3px 9px",borderRadius:20,fontSize:11,fontWeight:700,background:`${stColor(r.statut)}18`,color:stColor(r.statut)}}>{r.statut}</span>
-                    </td>
-                    <td style={{padding:"8px 11px",color:"#6b7280",fontSize:12}}>{r.created_at?.slice(0,10)}</td>
-                    <td style={{padding:"8px 11px",color:"#2d9e5f",fontSize:12}}>عرض ←</td>
-                  </tr>
-                ))
-              }
-            </tbody>
-          </table>
-        </div>
-        <p style={{color:"#9ca3af",fontSize:12,marginTop:8,textAlign:"center"}}>{data.total} مترشح إجمالاً</p>
-      </div>
-    </div>
-  );
+  const stColor = s => ({
+    جديد: "#3b82f6",
+    مقبول: "#22c55e",
+    مرفوض: "#ef4444"
+  })[s] || "#9ca3af";
+  return /*#__PURE__*/_jsxDEV("div", {
+    style: {
+      position: "fixed",
+      inset: 0,
+      background: "#fff",
+      zIndex: 1000,
+      overflow: "auto",
+      padding: 16,
+      fontFamily: "inherit"
+    },
+    dir: "rtl",
+    children: /*#__PURE__*/_jsxDEV("div", {
+      style: {
+        maxWidth: 960,
+        margin: "0 auto"
+      },
+      children: [/*#__PURE__*/_jsxDEV("div", {
+        style: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 18
+        },
+        children: [/*#__PURE__*/_jsxDEV("h2", {
+          style: {
+            margin: 0,
+            color: "#1a6b3c",
+            fontSize: 17
+          },
+          children: "🗂️ لوحة إدارة التسجيلات"
+        }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+          onClick: onClose,
+          style: {
+            padding: "6px 13px",
+            borderRadius: 8,
+            border: "1px solid #d1d5db",
+            background: "#fff",
+            cursor: "pointer"
+          },
+          children: "✕ إغلاق"
+        }, void 0, false)]
+      }, void 0, true), /*#__PURE__*/_jsxDEV("div", {
+        style: {
+          display: "grid",
+          gridTemplateColumns: "repeat(4,1fr)",
+          gap: 10,
+          marginBottom: 18
+        },
+        children: [["إجمالي", stats.total, "#1a6b3c"], ["اليوم", stats.today, "#2d9e5f"], ["جديد", stats.jadid, "#3b82f6"], ["مقبول", stats.maqboul, "#22c55e"]].map(([l, v, c]) => /*#__PURE__*/_jsxDEV("div", {
+          style: {
+            background: "#fff",
+            border: `1px solid ${c}22`,
+            borderRadius: 10,
+            padding: "10px 14px",
+            boxShadow: "0 1px 4px rgba(0,0,0,.05)"
+          },
+          children: [/*#__PURE__*/_jsxDEV("div", {
+            style: {
+              fontSize: 22,
+              fontWeight: 700,
+              color: c
+            },
+            children: v ?? "-"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+            style: {
+              fontSize: 12,
+              color: "#6b7280"
+            },
+            children: l
+          }, void 0, false)]
+        }, l, true))
+      }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+        style: {
+          display: "flex",
+          gap: 10,
+          marginBottom: 14
+        },
+        children: [/*#__PURE__*/_jsxDEV("input", {
+          style: {
+            ...inp,
+            flex: 1
+          },
+          placeholder: "بحث بالاسم، NIN، الهاتف...",
+          value: search,
+          onChange: e => setSearch(e.target.value)
+        }, void 0, false), /*#__PURE__*/_jsxDEV("select", {
+          style: {
+            ...inp,
+            width: 130
+          },
+          value: statut,
+          onChange: e => setStatut(e.target.value),
+          children: [/*#__PURE__*/_jsxDEV("option", {
+            value: "",
+            children: "كل الحالات"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("option", {
+            children: "جديد"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("option", {
+            children: "مقبول"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("option", {
+            children: "مرفوض"
+          }, void 0, false)]
+        }, void 0, true), /*#__PURE__*/_jsxDEV("a", {
+          href: `${API}/admin/export/csv`,
+          style: {
+            padding: "10px 14px",
+            background: "#1a6b3c",
+            color: "#fff",
+            borderRadius: 8,
+            textDecoration: "none",
+            fontWeight: 600,
+            fontSize: 13,
+            display: "flex",
+            alignItems: "center"
+          },
+          children: "⬇ CSV"
+        }, void 0, false)]
+      }, void 0, true), sel && /*#__PURE__*/_jsxDEV("div", {
+        style: {
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,.5)",
+          zIndex: 2000,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 16
+        },
+        children: /*#__PURE__*/_jsxDEV("div", {
+          style: {
+            background: "#fff",
+            borderRadius: 16,
+            padding: 20,
+            maxWidth: 460,
+            width: "100%",
+            maxHeight: "85vh",
+            overflow: "auto"
+          },
+          dir: "rtl",
+          children: [/*#__PURE__*/_jsxDEV("div", {
+            style: {
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 12
+            },
+            children: [/*#__PURE__*/_jsxDEV("h3", {
+              style: {
+                margin: 0
+              },
+              children: [sel.nom_ar, " ", sel.prenom_ar]
+            }, void 0, true), /*#__PURE__*/_jsxDEV("button", {
+              onClick: () => setSel(null),
+              style: {
+                border: "none",
+                background: "none",
+                fontSize: 18,
+                cursor: "pointer"
+              },
+              children: "✕"
+            }, void 0, false)]
+          }, void 0, true), sel.image_path && /*#__PURE__*/_jsxDEV("img", {
+            src: `${API}/admin/images/${sel.image_path}`,
+            style: {
+              width: "100%",
+              borderRadius: 8,
+              marginBottom: 12,
+              maxHeight: 150,
+              objectFit: "contain",
+              border: "1px solid #e5e7eb"
+            }
+          }, void 0, false), [["NIN", sel.nin], ["اللقب", sel.nom_ar], ["الاسم", sel.prenom_ar], ["Nom", sel.nom_fr], ["تاريخ الميلاد", sel.date_naissance], ["مكان الميلاد", sel.lieu_naissance], ["الهاتف", sel.telephone], ["رقم الرخصة", sel.num_permis], ["الفئات", (sel.categories || []).join(" / ")], ["تاريخ التسجيل", sel.created_at]].filter(([, v]) => v).map(([l, v]) => /*#__PURE__*/_jsxDEV("div", {
+            style: {
+              display: "flex",
+              gap: 10,
+              padding: "6px 0",
+              borderBottom: "1px solid #f3f4f6"
+            },
+            children: [/*#__PURE__*/_jsxDEV("span", {
+              style: {
+                color: "#6b7280",
+                fontSize: 13,
+                minWidth: 110
+              },
+              children: l
+            }, void 0, false), /*#__PURE__*/_jsxDEV("span", {
+              style: {
+                fontSize: 13,
+                fontWeight: 500
+              },
+              children: v
+            }, void 0, false)]
+          }, l, true)), /*#__PURE__*/_jsxDEV("div", {
+            style: {
+              marginTop: 14,
+              display: "flex",
+              gap: 8
+            },
+            children: ["جديد", "مقبول", "مرفوض"].map(s => /*#__PURE__*/_jsxDEV("button", {
+              onClick: () => updSt(sel.id, s),
+              style: {
+                flex: 1,
+                padding: "7px 0",
+                borderRadius: 8,
+                border: `2px solid ${stColor(s)}`,
+                background: sel.statut === s ? stColor(s) : "#fff",
+                color: sel.statut === s ? "#fff" : stColor(s),
+                cursor: "pointer",
+                fontWeight: 600,
+                fontSize: 13
+              },
+              children: s
+            }, s, false))
+          }, void 0, false)]
+        }, void 0, true)
+      }, void 0, false), loading && /*#__PURE__*/_jsxDEV("div", {
+        style: {
+          textAlign: "center",
+          padding: 20,
+          color: "#6b7280"
+        },
+        children: "جارٍ التحميل..."
+      }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+        style: {
+          overflowX: "auto",
+          borderRadius: 12,
+          border: "1px solid #e5e7eb"
+        },
+        children: /*#__PURE__*/_jsxDEV("table", {
+          style: {
+            width: "100%",
+            borderCollapse: "collapse",
+            fontSize: 13
+          },
+          children: [/*#__PURE__*/_jsxDEV("thead", {
+            children: /*#__PURE__*/_jsxDEV("tr", {
+              style: {
+                background: "#f0fdf4"
+              },
+              children: ["#", "الاسم", "NIN", "الهاتف", "الرخصة", "الفئات", "الحالة", "التسجيل", ""].map(h => /*#__PURE__*/_jsxDEV("th", {
+                style: {
+                  padding: "9px 11px",
+                  textAlign: "right",
+                  color: "#374151",
+                  fontWeight: 600,
+                  borderBottom: "2px solid #d1fae5",
+                  whiteSpace: "nowrap"
+                },
+                children: h
+              }, h, false))
+            }, void 0, false)
+          }, void 0, false), /*#__PURE__*/_jsxDEV("tbody", {
+            children: !data.candidates?.length ? /*#__PURE__*/_jsxDEV("tr", {
+              children: /*#__PURE__*/_jsxDEV("td", {
+                colSpan: 9,
+                style: {
+                  textAlign: "center",
+                  padding: 40,
+                  color: "#9ca3af"
+                },
+                children: "لا توجد نتائج"
+              }, void 0, false)
+            }, void 0, false) : data.candidates.map((r, i) => /*#__PURE__*/_jsxDEV("tr", {
+              onClick: () => setSel(r),
+              style: {
+                background: i % 2 === 0 ? "#fff" : "#fafafa",
+                cursor: "pointer"
+              },
+              onMouseEnter: e => e.currentTarget.style.background = "#f0fdf4",
+              onMouseLeave: e => e.currentTarget.style.background = i % 2 === 0 ? "#fff" : "#fafafa",
+              children: [/*#__PURE__*/_jsxDEV("td", {
+                style: {
+                  padding: "8px 11px",
+                  color: "#9ca3af"
+                },
+                children: r.id
+              }, void 0, false), /*#__PURE__*/_jsxDEV("td", {
+                style: {
+                  padding: "8px 11px",
+                  fontWeight: 600
+                },
+                children: [r.nom_ar, " ", r.prenom_ar]
+              }, void 0, true), /*#__PURE__*/_jsxDEV("td", {
+                style: {
+                  padding: "8px 11px",
+                  fontFamily: "monospace",
+                  fontSize: 12
+                },
+                children: r.nin
+              }, void 0, false), /*#__PURE__*/_jsxDEV("td", {
+                style: {
+                  padding: "8px 11px"
+                },
+                children: r.telephone
+              }, void 0, false), /*#__PURE__*/_jsxDEV("td", {
+                style: {
+                  padding: "8px 11px",
+                  fontFamily: "monospace"
+                },
+                children: r.num_permis
+              }, void 0, false), /*#__PURE__*/_jsxDEV("td", {
+                style: {
+                  padding: "8px 11px"
+                },
+                children: (r.categories || []).join(" ")
+              }, void 0, false), /*#__PURE__*/_jsxDEV("td", {
+                style: {
+                  padding: "8px 11px"
+                },
+                children: /*#__PURE__*/_jsxDEV("span", {
+                  style: {
+                    padding: "3px 9px",
+                    borderRadius: 20,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    background: `${stColor(r.statut)}18`,
+                    color: stColor(r.statut)
+                  },
+                  children: r.statut
+                }, void 0, false)
+              }, void 0, false), /*#__PURE__*/_jsxDEV("td", {
+                style: {
+                  padding: "8px 11px",
+                  color: "#6b7280",
+                  fontSize: 12
+                },
+                children: r.created_at?.slice(0, 10)
+              }, void 0, false), /*#__PURE__*/_jsxDEV("td", {
+                style: {
+                  padding: "8px 11px",
+                  color: "#2d9e5f",
+                  fontSize: 12
+                },
+                children: "عرض ←"
+              }, void 0, false)]
+            }, r.id, true))
+          }, void 0, false)]
+        }, void 0, true)
+      }, void 0, false), /*#__PURE__*/_jsxDEV("p", {
+        style: {
+          color: "#9ca3af",
+          fontSize: 12,
+          marginTop: 8,
+          textAlign: "center"
+        },
+        children: [data.total, " مترشح إجمالاً"]
+      }, void 0, true)]
+    }, void 0, true)
+  }, void 0, false);
 }
-
 function App() {
-  const [step,setStep] = useState(0);
-  const [form,setForm] = useState(INIT);
-  const [prev,setPrev] = useState(null);
-  const [b64,setB64] = useState(null);
-  const [saving,setSaving] = useState(false);
-  const [errs,setErrs] = useState([]);
-  const [admin,setAdmin] = useState(false);
-
+  const [step, setStep] = useState(0);
+  const [form, setForm] = useState(INIT);
+  const [prev, setPrev] = useState(null);
+  const [b64, setB64] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [errs, setErrs] = useState([]);
+  const [admin, setAdmin] = useState(false);
   const onDone = (data, imgB64, url) => {
-    setForm(f => ({...f,...Object.fromEntries(Object.entries(data).filter(([,v])=>v!=null&&v!==""))}));
-    setB64(imgB64); setPrev(url); setStep(1);
+    setForm(f => ({
+      ...f,
+      ...Object.fromEntries(Object.entries(data).filter(([, v]) => v != null && v !== ""))
+    }));
+    setB64(imgB64);
+    setPrev(url);
+    setStep(1);
   };
-
   const validate = () => {
     const e = [];
-    if(!form.nomAr)    e.push("اللقب بالعربية مطلوب");
-    if(!form.prenomAr) e.push("الاسم بالعربية مطلوب");
-    if(!form.dateNaissance) e.push("تاريخ الميلاد مطلوب");
-    if(!form.nin||form.nin.length<9) e.push("رقم التعريف الوطني غير صالح");
-    if(!form.telephone) e.push("رقم الهاتف مطلوب");
-    if(!form.numPermis) e.push("رقم الرخصة مطلوب");
-    if(!form.categories.length) e.push("يجب اختيار فئة واحدة");
+    if (!form.nomAr) e.push("اللقب بالعربية مطلوب");
+    if (!form.prenomAr) e.push("الاسم بالعربية مطلوب");
+    if (!form.dateNaissance) e.push("تاريخ الميلاد مطلوب");
+    if (!form.nin || form.nin.length < 9) e.push("رقم التعريف الوطني غير صالح");
+    if (!form.telephone) e.push("رقم الهاتف مطلوب");
+    if (!form.numPermis) e.push("رقم الرخصة مطلوب");
+    if (!form.categories.length) e.push("يجب اختيار فئة واحدة");
     return e;
   };
-
   const submit = async () => {
-    const e = validate(); if(e.length){setErrs(e);return;}
-    setErrs([]); setSaving(true);
+    const e = validate();
+    if (e.length) {
+      setErrs(e);
+      return;
+    }
+    setErrs([]);
+    setSaving(true);
     try {
-      const r = await fetch(`${API}/register`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...form,image_base64:b64})});
+      const r = await fetch(`${API}/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          ...form,
+          image_base64: b64
+        })
+      });
       const j = await r.json();
-      if(!r.ok) throw new Error(j.error||"خطأ في الخادم");
+      if (!r.ok) throw new Error(j.error || "خطأ في الخادم");
       setStep(2);
-    } catch(e) { setErrs([e.message]); }
+    } catch (e) {
+      setErrs([e.message]);
+    }
     setSaving(false);
   };
-
-  const reset = () => { setStep(0); setForm(INIT); setPrev(null); setB64(null); setErrs([]); };
-
-  return (
-    <>
-      <div style={{background:"#1a6b3c",boxShadow:"0 2px 8px rgba(0,0,0,.15)"}}>
-        <div style={{maxWidth:660,margin:"0 auto",padding:"0 16px",display:"flex",alignItems:"center",justifyContent:"space-between",height:56}}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <span style={{fontSize:20}}>🚕</span>
-            <div>
-              <div style={{color:"#fff",fontWeight:700,fontSize:14}}>مركز التكوين — نقل الأشخاص</div>
-              <div style={{color:"#86efac",fontSize:11}}>تسجيل سائقي سيارات الأجرة</div>
-            </div>
-          </div>
-          <button onClick={()=>setAdmin(true)} style={{padding:"5px 12px",borderRadius:8,border:"1px solid rgba(255,255,255,.3)",background:"rgba(255,255,255,.1)",color:"#fff",cursor:"pointer",fontSize:12}}>
-            🗂️ الإدارة
-          </button>
-        </div>
-      </div>
-
-      <div style={{maxWidth:660,margin:"0 auto",padding:"24px 12px"}}>
-        <div style={{background:"#fff",borderRadius:20,boxShadow:"0 4px 24px rgba(0,0,0,.07)",padding:"24px 20px"}}>
-          {step < 2 && <StepBar step={step}/>}
-          {step===0 && <UploadStep onDone={onDone}/>}
-          {step===1 && <>
-            <ReviewStep form={form} setForm={setForm} prev={prev}/>
-            {errs.length > 0 && (
-              <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:"10px 14px",marginTop:12}}>
-                {errs.map(e=><div key={e} style={{color:"#dc2626",fontSize:13,marginBottom:3}}>⚠️ {e}</div>)}
-              </div>
-            )}
-            <div style={{display:"flex",gap:10,marginTop:20}}>
-              <button onClick={()=>setStep(0)} style={{flex:1,padding:12,borderRadius:10,border:"1.5px solid #d1d5db",background:"#fff",cursor:"pointer",fontWeight:600,color:"#374151"}}>← رجوع</button>
-              <button onClick={submit} disabled={saving} style={{flex:2,padding:12,borderRadius:10,border:"none",background:saving?"#86efac":"#1a6b3c",color:"#fff",cursor:saving?"default":"pointer",fontWeight:700,fontSize:15}}>
-                {saving ? "جارٍ الإرسال..." : "✅ تأكيد التسجيل"}
-              </button>
-            </div>
-          </>}
-          {step===2 && <>
-            <ConfirmStep form={form} prev={prev}/>
-            <button onClick={reset} style={{width:"100%",marginTop:16,padding:12,borderRadius:10,border:"none",background:"#1a6b3c",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:15}}>+ تسجيل مترشح آخر</button>
-          </>}
-        </div>
-        <p style={{textAlign:"center",color:"#9ca3af",fontSize:12,marginTop:16}}>بياناتك محفوظة بشكل آمن على خادم المركز</p>
-      </div>
-
-      {admin && <AdminPanel onClose={()=>setAdmin(false)}/>}
-    </>
-  );
+  const reset = () => {
+    setStep(0);
+    setForm(INIT);
+    setPrev(null);
+    setB64(null);
+    setErrs([]);
+  };
+  return /*#__PURE__*/_jsxDEV(_Fragment, {
+    children: [/*#__PURE__*/_jsxDEV("div", {
+      style: {
+        background: "#1a6b3c",
+        boxShadow: "0 2px 8px rgba(0,0,0,.15)"
+      },
+      children: /*#__PURE__*/_jsxDEV("div", {
+        style: {
+          maxWidth: 660,
+          margin: "0 auto",
+          padding: "0 16px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          height: 56
+        },
+        children: [/*#__PURE__*/_jsxDEV("div", {
+          style: {
+            display: "flex",
+            alignItems: "center",
+            gap: 10
+          },
+          children: [/*#__PURE__*/_jsxDEV("span", {
+            style: {
+              fontSize: 20
+            },
+            children: "🚕"
+          }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+            children: [/*#__PURE__*/_jsxDEV("div", {
+              style: {
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: 14
+              },
+              children: "مركز التكوين — نقل الأشخاص"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+              style: {
+                color: "#86efac",
+                fontSize: 11
+              },
+              children: "تسجيل سائقي سيارات الأجرة"
+            }, void 0, false)]
+          }, void 0, true)]
+        }, void 0, true), /*#__PURE__*/_jsxDEV("button", {
+          onClick: () => setAdmin(true),
+          style: {
+            padding: "5px 12px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,.3)",
+            background: "rgba(255,255,255,.1)",
+            color: "#fff",
+            cursor: "pointer",
+            fontSize: 12
+          },
+          children: "🗂️ الإدارة"
+        }, void 0, false)]
+      }, void 0, true)
+    }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+      style: {
+        maxWidth: 660,
+        margin: "0 auto",
+        padding: "24px 12px"
+      },
+      children: [/*#__PURE__*/_jsxDEV("div", {
+        style: {
+          background: "#fff",
+          borderRadius: 20,
+          boxShadow: "0 4px 24px rgba(0,0,0,.07)",
+          padding: "24px 20px"
+        },
+        children: [step < 2 && /*#__PURE__*/_jsxDEV(StepBar, {
+          step: step
+        }, void 0, false), step === 0 && /*#__PURE__*/_jsxDEV(UploadStep, {
+          onDone: onDone
+        }, void 0, false), step === 1 && /*#__PURE__*/_jsxDEV(_Fragment, {
+          children: [/*#__PURE__*/_jsxDEV(ReviewStep, {
+            form: form,
+            setForm: setForm,
+            prev: prev
+          }, void 0, false), errs.length > 0 && /*#__PURE__*/_jsxDEV("div", {
+            style: {
+              background: "#fef2f2",
+              border: "1px solid #fecaca",
+              borderRadius: 10,
+              padding: "10px 14px",
+              marginTop: 12
+            },
+            children: errs.map(e => /*#__PURE__*/_jsxDEV("div", {
+              style: {
+                color: "#dc2626",
+                fontSize: 13,
+                marginBottom: 3
+              },
+              children: ["⚠️ ", e]
+            }, e, true))
+          }, void 0, false), /*#__PURE__*/_jsxDEV("div", {
+            style: {
+              display: "flex",
+              gap: 10,
+              marginTop: 20
+            },
+            children: [/*#__PURE__*/_jsxDEV("button", {
+              onClick: () => setStep(0),
+              style: {
+                flex: 1,
+                padding: 12,
+                borderRadius: 10,
+                border: "1.5px solid #d1d5db",
+                background: "#fff",
+                cursor: "pointer",
+                fontWeight: 600,
+                color: "#374151"
+              },
+              children: "← رجوع"
+            }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+              onClick: submit,
+              disabled: saving,
+              style: {
+                flex: 2,
+                padding: 12,
+                borderRadius: 10,
+                border: "none",
+                background: saving ? "#86efac" : "#1a6b3c",
+                color: "#fff",
+                cursor: saving ? "default" : "pointer",
+                fontWeight: 700,
+                fontSize: 15
+              },
+              children: saving ? "جارٍ الإرسال..." : "✅ تأكيد التسجيل"
+            }, void 0, false)]
+          }, void 0, true)]
+        }, void 0, true), step === 2 && /*#__PURE__*/_jsxDEV(_Fragment, {
+          children: [/*#__PURE__*/_jsxDEV(ConfirmStep, {
+            form: form,
+            prev: prev
+          }, void 0, false), /*#__PURE__*/_jsxDEV("button", {
+            onClick: reset,
+            style: {
+              width: "100%",
+              marginTop: 16,
+              padding: 12,
+              borderRadius: 10,
+              border: "none",
+              background: "#1a6b3c",
+              color: "#fff",
+              cursor: "pointer",
+              fontWeight: 700,
+              fontSize: 15
+            },
+            children: "+ تسجيل مترشح آخر"
+          }, void 0, false)]
+        }, void 0, true)]
+      }, void 0, true), /*#__PURE__*/_jsxDEV("p", {
+        style: {
+          textAlign: "center",
+          color: "#9ca3af",
+          fontSize: 12,
+          marginTop: 16
+        },
+        children: "بياناتك محفوظة بشكل آمن على خادم المركز"
+      }, void 0, false)]
+    }, void 0, true), admin && /*#__PURE__*/_jsxDEV(AdminPanel, {
+      onClose: () => setAdmin(false)
+    }, void 0, false)]
+  }, void 0, true);
 }
+ReactDOM.createRoot(document.getElementById("root")).render(/*#__PURE__*/_jsxDEV(App, {}, void 0, false));
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
 </body>
 </html>
