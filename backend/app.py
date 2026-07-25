@@ -204,6 +204,13 @@ def stats():
         maqboul = conn.execute("SELECT COUNT(*) FROM candidates WHERE statut='مقبول'").fetchone()[0]
     return jsonify({"total":total,"today":today,"jadid":jadid,"maqboul":maqboul})
 
+@app.after_request
+def remove_csp(response):
+    response.headers.pop("Content-Security-Policy", None)
+    response.headers.pop("X-Content-Security-Policy", None)
+    response.headers["Cross-Origin-Opener-Policy"] = "unsafe-none"
+    return response
+
 @app.route("/")
 def index():
     return Response(get_html(), mimetype="text/html; charset=utf-8")
