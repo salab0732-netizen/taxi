@@ -211,6 +211,22 @@ def remove_csp(response):
     response.headers["Cross-Origin-Opener-Policy"] = "unsafe-none"
     return response
 
+STATIC_LIBS = {
+    "react.js":     "https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js",
+    "react-dom.js": "https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js",
+    "babel.js":     "https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js",
+}
+
+@app.route("/static/<name>")
+def static_lib(name):
+    if name not in STATIC_LIBS:
+        return "Not found", 404
+    cache_path = Path(__file__).parent / name
+    if not cache_path.exists():
+        import urllib.request
+        urllib.request.urlretrieve(STATIC_LIBS[name], cache_path)
+    return Response(cache_path.read_bytes(), mimetype="application/javascript")
+
 @app.route("/")
 def index():
     return Response(get_html(), mimetype="text/html; charset=utf-8")
