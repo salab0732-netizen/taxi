@@ -174,6 +174,101 @@ def update_candidate(cid):
 def serve_image(fn):
     return send_from_directory(IMAGES_DIR, fn)
 
+@app.route("/api/admin/print/security")
+def print_security():
+    page  = int(request.args.get("page", 1))
+    limit = 30
+    offset = (page - 1) * limit
+    with get_db() as conn:
+        total = conn.execute("SELECT COUNT(*) FROM candidates").fetchone()[0]
+        rows  = conn.execute("""
+            SELECT id, nom_ar, prenom_ar, date_naissance,
+                   lieu_naissance, wilaya_naissance, adresse, telephone
+            FROM candidates ORDER BY created_at DESC
+            LIMIT ? OFFSET ?""", [limit, offset]).fetchall()
+    total_pages = max(1, -(-total // limit))
+    rows_html = ""
+    for i, r in enumerate(rows, start=offset+1):
+        lieu = (r["lieu_naissance"] or "") + (" — " + r["wilaya_naissance"] if r["wilaya_naissance"] else "")
+        rows_html += f"""
+        <tr>
+          <td>{i}</td>
+          <td>{r['nom_ar'] or ''} {r['prenom_ar'] or ''}</td>
+          <td>{r['date_naissance'] or ''}</td>
+          <td>{lieu}</td>
+          <td>{r['adresse'] or ''}</td>
+          <td>{r['telephone'] or ''}</td>
+        </tr>"""
+    nav = ""
+    if page > 1:
+        nav += f'<a href="?page={page-1}">◀ السابق</a> '
+    if page < total_pages:
+        nav += f' <a href="?page={page+1}">التالي ▶</a>'
+    html = f"""<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>قائمة المرشحين — للمصالح الأمنية</title>
+<style>
+  @page {{ size: A4 portrait; margin: 18mm 12mm; }}
+  body {{ font-family: 'Times New Roman', serif; font-size: 12px; color: #000; direction: rtl; }}
+  .header {{ text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 16px; }}
+  .header h2 {{ font-size: 16px; margin: 0 0 4px; }}
+  .header p  {{ font-size: 11px; margin: 2px 0; color: #333; }}
+  table {{ width: 100%; border-collapse: collapse; }}
+  th {{ background: #1a6b3c; color: #fff; padding: 6px 4px; font-size: 11px; text-align: center; border: 1px solid #000; }}
+  td {{ padding: 5px 4px; border: 1px solid #555; font-size: 11px; vertical-align: top; text-align: center; }}
+  tr:nth-child(even) td {{ background: #f5f5f5; }}
+  .footer {{ margin-top: 20px; font-size: 11px; color: #555; text-align: center; }}
+  .sign-row {{ display:flex; justify-content:space-between; margin-top:30px; font-size:11px; }}
+  .nav {{ text-align:center; margin: 10px 0; }}
+  .nav a {{ margin: 0 10px; color: #1a6b3c; font-size: 13px; text-decoration:none; }}
+  @media print {{
+    .nav, .print-btn {{ display: none !important; }}
+    body {{ margin: 0; }}
+  }}
+  .print-btn {{
+    display:block; margin:12px auto; padding:8px 28px;
+    background:#1a6b3c; color:#fff; border:none; border-radius:6px;
+    font-size:14px; cursor:pointer;
+  }}
+</style>
+</head>
+<body>
+<div class="header">
+  <h2>الجمهورية الجزائرية الديمقراطية الشعبية</h2>
+  <p>مدرسة تعليم قيادة سيارات الأجرة</p>
+  <p><strong>قائمة المرشحين للتحقيق الإداري</strong></p>
+  <p>الصفحة {page} من {total_pages} — إجمالي المرشحين: {total}</p>
+</div>
+<button class="print-btn" onclick="window.print()">🖨️ طباعة</button>
+<table>
+  <thead>
+    <tr>
+      <th style="width:5%">الرقم</th>
+      <th style="width:22%">الاسم واللقب</th>
+      <th style="width:13%">تاريخ الميلاد</th>
+      <th style="width:18%">مكان الميلاد</th>
+      <th style="width:25%">العنوان</th>
+      <th style="width:12%">رقم الهاتف</th>
+    </tr>
+  </thead>
+  <tbody>{rows_html}</tbody>
+</table>
+<div class="footer">
+  تاريخ الإصدار: {__import__('datetime').date.today().strftime('%Y/%m/%d')}
+  &nbsp;|&nbsp; عدد المرشحين في هذه الصفحة: {len(rows)}
+</div>
+<div class="sign-row">
+  <div>توقيع المدير: ___________________</div>
+  <div>الختم الرسمي</div>
+  <div>تاريخ الإرسال: ___________________</div>
+</div>
+<div class="nav">{nav}</div>
+</body>
+</html>"""
+    return Response(html, mimetype="text/html; charset=utf-8")
+
 @app.route("/api/admin/export/csv")
 def export_csv():
     import csv, io

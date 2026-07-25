@@ -767,7 +767,22 @@ function AdminPanel({
       display: "flex",
       alignItems: "center"
     }
-  }, "⬇ CSV")), sel && /*#__PURE__*/React.createElement("div", {
+  }, "⬇ CSV"), /*#__PURE__*/React.createElement("a", {
+    href: `${API}/admin/print/security`,
+    target: "_blank",
+    style: {
+      padding: "10px 14px",
+      background: "#1d4ed8",
+      color: "#fff",
+      borderRadius: 8,
+      textDecoration: "none",
+      fontWeight: 600,
+      fontSize: 13,
+      display: "flex",
+      alignItems: "center",
+      gap: 5
+    }
+  }, "🖨️ قائمة أمنية")), sel && /*#__PURE__*/React.createElement("div", {
     style: {
       position: "fixed",
       inset: 0,
