@@ -194,6 +194,56 @@ function ConfirmStep({ form, prev }) {
       <span style={{color:"#111827",fontSize:13,fontWeight:500}}>{v}</span>
     </div>
   ) : null;
+
+  function printReceipt() {
+    const now = new Date().toLocaleString("ar-DZ");
+    const cats = form.categories.join(" — ") || "—";
+    const html = `<!DOCTYPE html><html dir="rtl" lang="ar">
+<head><meta charset="UTF-8"><title>وصل التسجيل</title>
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; color: #111; direction: rtl; }
+  .header { text-align: center; border-bottom: 3px solid #1a6b3c; padding-bottom: 14px; margin-bottom: 18px; }
+  .header h1 { color: #1a6b3c; font-size: 20px; margin: 0 0 4px; }
+  .header p { color: #6b7280; font-size: 13px; margin: 0; }
+  .badge { display: inline-block; background: #d1fae5; color: #1a6b3c; padding: 4px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; margin-top: 8px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
+  td { padding: 8px 10px; font-size: 14px; border-bottom: 1px solid #f3f4f6; }
+  td:first-child { color: #6b7280; width: 140px; }
+  td:last-child { font-weight: 600; }
+  .photo { text-align: center; margin-bottom: 16px; }
+  .photo img { max-height: 100px; border-radius: 8px; border: 1px solid #e5e7eb; }
+  .footer { text-align: center; font-size: 12px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 12px; margin-top: 10px; }
+  @media print { body { padding: 10px; } }
+</style></head><body>
+<div class="header">
+  <h1>🚕 وصل تسجيل — مدرسة تعليم السياقة</h1>
+  <p>تاريخ التسجيل: ${now}</p>
+  <span class="badge">✅ تم القبول</span>
+</div>
+${prev ? `<div class="photo"><img src="${prev}" alt="صورة الرخصة"/></div>` : ""}
+<table>
+  <tr><td>الاسم الكامل (عربي)</td><td>${form.nomAr || ""} ${form.prenomAr || ""}</td></tr>
+  <tr><td>Nom & Prénom</td><td>${form.nom || ""} ${form.prenom || ""}</td></tr>
+  <tr><td>رقم التعريف (NIN)</td><td style="letter-spacing:1px">${form.nin || "—"}</td></tr>
+  <tr><td>تاريخ الميلاد</td><td>${form.dateNaissance || "—"}</td></tr>
+  <tr><td>مكان الميلاد</td><td>${form.lieuNaissance || "—"}${form.wilayaNaissance ? " — " + form.wilayaNaissance : ""}</td></tr>
+  <tr><td>رقم الهاتف</td><td>${form.telephone || "—"}${form.telephone2 ? " / " + form.telephone2 : ""}</td></tr>
+  <tr><td>العنوان</td><td>${form.adresse || "—"}</td></tr>
+  <tr><td>رقم الرخصة</td><td>${form.numPermis || "—"}</td></tr>
+  <tr><td>تاريخ الإصدار</td><td>${form.dateDelivrance || "—"}</td></tr>
+  <tr><td>تاريخ الانتهاء</td><td>${form.dateExpiration || "—"}</td></tr>
+  <tr><td>مكان الإصدار</td><td>${form.lieuDelivrance || "—"}</td></tr>
+  <tr><td>فئات الرخصة</td><td>${cats}</td></tr>
+  ${form.notes ? `<tr><td>ملاحظات</td><td>${form.notes}</td></tr>` : ""}
+</table>
+<div class="footer">هذا الوصل دليل على استلام ملف التسجيل — يُحتفظ به للمراجعة</div>
+<script>window.onload=()=>{window.print();}</script>
+</body></html>`;
+    const w = window.open("", "_blank", "width=700,height=900");
+    w.document.write(html);
+    w.document.close();
+  }
+
   return (
     <div>
       <div style={{textAlign:"center",marginBottom:20}}>
@@ -210,6 +260,12 @@ function ConfirmStep({ form, prev }) {
         {row("رقم الرخصة", form.numPermis)}
         {row("الفئات", form.categories.join(" — "))}
       </div>
+      <button onClick={printReceipt} style={{
+        marginTop:18, width:"100%", padding:"12px 0",
+        background:"#1a6b3c", color:"#fff", border:"none",
+        borderRadius:10, fontSize:15, fontWeight:700,
+        cursor:"pointer", letterSpacing:0.5
+      }}>🖨️ طباعة وصل التسجيل</button>
     </div>
   );
 }
