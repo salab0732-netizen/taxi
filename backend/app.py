@@ -83,8 +83,6 @@ def ocr():
         "gemini-1.5-flash",
         "gemini-1.5-flash-8b",
     ]
-    req = urllib.request.Request(url, data=payload,
-        headers={"Content-Type": "application/json"}, method="POST")
     last_err = ""
     model_idx = 0
     for attempt in range(5):
