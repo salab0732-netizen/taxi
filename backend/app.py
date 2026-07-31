@@ -50,18 +50,17 @@ def ocr():
         return jsonify({"error": "Gemini API key not found in gemini_key.txt"}), 500
 
     prompt = (
-        "أنت خبير في قراءة رخص السياقة الجزائرية وبطاقات التعريف الوطنية.\n"
-        "المطلوب: استخرج البيانات من الصورة وأعد JSON فقط — بدون أي نص قبله أو بعده، بدون ```json أو ```.\n"
-        "قواعد صارمة:\n"
-        "1. التواريخ: YYYY-MM-DD فقط (مثال: 1990-05-23)\n"
-        "2. إذا لم تجد قيمة: اترك الحقل فارغاً \"\"\n"
-        "3. nomAr/prenomAr: اللقب والاسم بالعربية\n"
-        "4. nom/prenom: اللقب والاسم بالفرنسية بأحرف كبيرة\n"
-        "5. nin: رقم التعريف الوطني 18 رقم بالضبط\n"
-        "6. categories: مصفوفة مثل [\"B\"] أو [\"B\",\"C\",\"D\"]\n"
-        "أعد هذا الـ JSON فقط مع ملء القيم:\n"
-        "{\"nomAr\":\"\",\"prenomAr\":\"\","
-        "\"nom\":\"\",\"prenom\":\"\","
+        "You are an expert OCR system for Algerian driving licenses and ID cards.\n"
+        "CRITICAL RULES:\n"
+        "1. Extract ONLY data that is ACTUALLY VISIBLE in the image. NEVER invent or guess values.\n"
+        "2. If a field is not clearly readable, return empty string \"\" for it.\n"
+        "3. Dates format: YYYY-MM-DD only (example: 1990-05-23).\n"
+        "4. nin = National ID number, exactly 18 digits.\n"
+        "5. categories = array of license categories visible on the card, e.g. [\"B\"] or [\"B\",\"C\"].\n"
+        "6. nom/prenom = French name in UPPERCASE as printed on card.\n"
+        "7. nomAr/prenomAr = Arabic name exactly as printed.\n"
+        "Return ONLY a valid JSON object, no markdown, no explanation, no backticks:\n"
+        "{\"nomAr\":\"\",\"prenomAr\":\"\",\"nom\":\"\",\"prenom\":\"\","
         "\"dateNaissance\":\"\",\"lieuNaissance\":\"\",\"wilayaNaissance\":\"\","
         "\"nin\":\"\",\"numPermis\":\"\","
         "\"dateDelivrance\":\"\",\"dateExpiration\":\"\",\"lieuDelivrance\":\"\","
@@ -104,7 +103,8 @@ def ocr():
             break  # خطأ HTTP لا فائدة من إعادة المحاولة
         except json.JSONDecodeError as e:
             last_err = f"JSON parse error (attempt {attempt+1}): {e}"
-            print(f"[attempt {attempt+1}] OCR error: {e} | text={text[:200]!r}")
+            print(f"[attempt {attempt+1}] OCR JSON error: {e}")
+            print(f"  raw text: {text[:400]!r}")
             if attempt == 2:
                 break
             import time; time.sleep(1)
