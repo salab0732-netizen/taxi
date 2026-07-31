@@ -418,6 +418,43 @@ def index():
 def get_html():
     return open(Path(__file__).parent / "index.html", encoding="utf-8").read()
 
+@app.route("/api/register-company", methods=["POST"])
+def register_company():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "no data"}), 400
+    required = ["nomSociete", "registreCommerce", "telephone", "wilaya", "nomResponsable"]
+    missing = [f for f in required if not data.get(f,"").strip()]
+    if missing:
+        return jsonify({"error": f"حقول مطلوبة: {', '.join(missing)}"}), 400
+    conn = get_db()
+    c = conn.cursor()
+    from datetime import datetime
+    now = datetime.now().isoformat(timespec="seconds")
+    c.execute("""INSERT INTO companies
+        (created_at,nom_societe,registre_commerce,numero_agreement,
+         nom_responsable,prenom_responsable,telephone,telephone2,
+         email,adresse,wilaya,nb_vehicules,type_vehicules,notes)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
+        now,
+        data.get("nomSociete",""),
+        data.get("registreCommerce",""),
+        data.get("numeroAgreement",""),
+        data.get("nomResponsable",""),
+        data.get("prenomResponsable",""),
+        data.get("telephone",""),
+        data.get("telephone2",""),
+        data.get("email",""),
+        data.get("adresse",""),
+        data.get("wilaya",""),
+        data.get("nbVehicules",""),
+        data.get("typeVehicules",""),
+        data.get("notes",""),
+    ))
+    conn.commit()
+    return jsonify({"success": True, "id": c.lastrowid})
+
+
 if __name__ == "__main__":
     init_db()
     print("\n" + "="*40)
