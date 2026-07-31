@@ -50,24 +50,22 @@ def ocr():
         return jsonify({"error": "Gemini API key not found in gemini_key.txt"}), 500
 
     prompt = (
-        'أنت خبير في قراءة رخص السياقة الجزائرية. استخرج البيانات من الصورة وأعد JSON فقط.\n'
-        'قواعد مهمة:\n'
-        '- أعد JSON فقط، بدون أي نص قبله أو بعده، بدون backticks\n'
-        '- التواريخ بصيغة YYYY-MM-DD فقط (مثال: 1990-05-23)\n'
-        '- إذا لم تجد قيمة اتركها فارغة "" تماماً\n'
-        '- nomAr و prenomAr: الاسم واللقب بالعربية\n'
-        '- nom و prenom: الاسم واللقب بالفرنسية (بأحرف كبيرة)\n'
-        '- nin: رقم التعريف الوطني (NIN) 18 رقم\n'
-        '- numPermis: رقم رخصة السياقة\n'
-        '- categories: مصفوفة فئات الرخصة مثل ["B"] أو ["B","C"]\n'
-        '{\n'
-        '  "nomAr":"","prenomAr":"",\n'
-        '  "nom":"","prenom":"",\n'
-        '  "dateNaissance":"","lieuNaissance":"","wilayaNaissance":"",\n'
-        '  "nin":"","numPermis":"",\n'
-        '  "dateDelivrance":"","dateExpiration":"","lieuDelivrance":"",\n'
-        '  "categories":[]\n'
-        '}'
+        "أنت خبير في قراءة رخص السياقة الجزائرية وبطاقات التعريف الوطنية.\n"
+        "المطلوب: استخرج البيانات من الصورة وأعد JSON فقط — بدون أي نص قبله أو بعده، بدون ```json أو ```.\n"
+        "قواعد صارمة:\n"
+        "1. التواريخ: YYYY-MM-DD فقط (مثال: 1990-05-23)\n"
+        "2. إذا لم تجد قيمة: اترك الحقل فارغاً \"\"\n"
+        "3. nomAr/prenomAr: اللقب والاسم بالعربية\n"
+        "4. nom/prenom: اللقب والاسم بالفرنسية بأحرف كبيرة\n"
+        "5. nin: رقم التعريف الوطني 18 رقم بالضبط\n"
+        "6. categories: مصفوفة مثل [\"B\"] أو [\"B\",\"C\",\"D\"]\n"
+        "أعد هذا الـ JSON فقط مع ملء القيم:\n"
+        "{\"nomAr\":\"\",\"prenomAr\":\"\","
+        "\"nom\":\"\",\"prenom\":\"\","
+        "\"dateNaissance\":\"\",\"lieuNaissance\":\"\",\"wilayaNaissance\":\"\","
+        "\"nin\":\"\",\"numPermis\":\"\","
+        "\"dateDelivrance\":\"\",\"dateExpiration\":\"\",\"lieuDelivrance\":\"\","
+        "\"categories\":[]}"
     )
 
     mime = data.get("mime_type", "image/jpeg")
@@ -78,26 +76,45 @@ def ocr():
                 {"text": prompt}
             ]
         }],
-        "generationConfig": {"temperature": 0, "maxOutputTokens": 1000}
+        "generationConfig": {"temperature": 0, "maxOutputTokens": 2048}
     }).encode("utf-8")
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     req = urllib.request.Request(url, data=payload,
         headers={"Content-Type": "application/json"}, method="POST")
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            result = json.loads(resp.read().decode("utf-8"))
-        text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
-        text = text.replace("```json","").replace("```","").strip()
-        extracted = json.loads(text)
-        return jsonify({"success": True, "data": extracted})
-    except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8")
-        print(f"Gemini HTTP error {e.code}: {body}")
-        return jsonify({"error": f"Gemini error {e.code}: {body}"}), 500
-    except Exception as e:
-        print(f"OCR error: {e}")
-        return jsonify({"error": str(e)}), 500
+    last_err = ""
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=45) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+            text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+            # تنظيف شامل: إزالة backticks وأي نص قبل/بعد JSON
+            text = text.replace("```json", "").replace("```", "").strip()
+            # استخراج أول كتلة JSON صالحة
+            start = text.find("{")
+            end   = text.rfind("}") + 1
+            if start >= 0 and end > start:
+                text = text[start:end]
+            extracted = json.loads(text)
+            return jsonify({"success": True, "data": extracted})
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8")
+            last_err = f"Gemini HTTP {e.code}: {body}"
+            print(f"[attempt {attempt+1}] {last_err}")
+            break  # خطأ HTTP لا فائدة من إعادة المحاولة
+        except json.JSONDecodeError as e:
+            last_err = f"JSON parse error (attempt {attempt+1}): {e}"
+            print(f"[attempt {attempt+1}] OCR error: {e} | text={text[:200]!r}")
+            if attempt == 2:
+                break
+            import time; time.sleep(1)
+            req = urllib.request.Request(url, data=payload,
+                headers={"Content-Type": "application/json"}, method="POST")
+        except Exception as e:
+            last_err = str(e)
+            print(f"[attempt {attempt+1}] OCR error: {e}")
+            break
+    return jsonify({"error": last_err}), 500
 
 @app.route("/api/register", methods=["POST"])
 def register():
