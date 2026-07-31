@@ -78,11 +78,20 @@ def ocr():
         "generationConfig": {"temperature": 0, "maxOutputTokens": 2048}
     }).encode("utf-8")
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    MODELS = [
+        "gemini-2.5-flash",
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-8b",
+    ]
     req = urllib.request.Request(url, data=payload,
         headers={"Content-Type": "application/json"}, method="POST")
     last_err = ""
-    for attempt in range(3):
+    model_idx = 0
+    for attempt in range(5):
+        model = MODELS[min(model_idx, len(MODELS)-1)]
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        req = urllib.request.Request(url, data=payload,
+            headers={"Content-Type": "application/json"}, method="POST")
         try:
             with urllib.request.urlopen(req, timeout=45) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
@@ -98,18 +107,21 @@ def ocr():
             return jsonify({"success": True, "data": extracted})
         except urllib.error.HTTPError as e:
             body = e.read().decode("utf-8")
-            last_err = f"Gemini HTTP {e.code}: {body}"
+            last_err = f"Gemini HTTP {e.code} ({model}): {body[:200]}"
             print(f"[attempt {attempt+1}] {last_err}")
-            break  # خطأ HTTP لا فائدة من إعادة المحاولة
+            if e.code in (503, 429, 500):
+                # الموديل مشغول — جرّب الموديل التالي
+                model_idx += 1
+                import time; time.sleep(1)
+                continue
+            break  # خطأ آخر لا فائدة من إعادة المحاولة
         except json.JSONDecodeError as e:
             last_err = f"JSON parse error (attempt {attempt+1}): {e}"
             print(f"[attempt {attempt+1}] OCR JSON error: {e}")
             print(f"  raw text: {text[:400]!r}")
-            if attempt == 2:
+            if attempt >= 4:
                 break
             import time; time.sleep(1)
-            req = urllib.request.Request(url, data=payload,
-                headers={"Content-Type": "application/json"}, method="POST")
         except Exception as e:
             last_err = str(e)
             print(f"[attempt {attempt+1}] OCR error: {e}")
