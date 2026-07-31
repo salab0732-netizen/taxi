@@ -26,12 +26,27 @@ const INITIAL_FORM = {
   nin:"", telephone:"", telephone2:"", adresse:"",
   numPermis:"", dateDelivrance:"", dateExpiration:"",
   lieuDelivrance:"", categories:[], notes:"",
+  // بيانات المركبة (من البطاقة الرمادية)
+  numImmatriculation:"", marque:"", typeVehicule:"", modele:"",
+  numSerie:"", genre:"", energie:"", puissance:"",
+  nbPlaces:"", anneeCirculation:"", numPrecedent:"",
 };
 
 // ==================== OCR ====================
 // ملاحظة: الاستخراج يمر عبر السيرفر الخلفي (/api/ocr) الذي يحمّل مفتاح
 // Gemini من backend/gemini_key.txt على الخادم فقط — لا يوجد أي مفتاح
 // مكشوف هنا في كود الواجهة الأمامية.
+async function extractCarteGriseData(base64Image, mimeType) {
+  const res = await fetch(`${API_BASE}/ocr-carte-grise`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ image_base64: base64Image, mime_type: mimeType })
+  });
+  const d = await res.json();
+  if (!d.success) { console.error("OCR carte grise error:", d.error); return null; }
+  return d.data;
+}
+
 async function extractLicenseData(base64Image, mimeType) {
   const res = await fetch(`${API_BASE}/ocr`, {
     method: "POST",
@@ -53,8 +68,105 @@ const inp = {
 
 // ==================== SUB-COMPONENTS ====================
 
+// ==================== VEHICLE UPLOAD ====================
+function UploadCarteGrise({ onDone, color="#1a6b3c" }) {
+  const [loading, setLoading] = React.useState(false);
+  const [preview, setPreview] = React.useState(null);
+  const [error, setError]     = React.useState("");
+  const fileRef = React.useRef();
+
+  async function handleFile(file) {
+    if (!file) return;
+    setError(""); setLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const b64 = e.target.result.split(",")[1];
+      const mime = file.type || "image/jpeg";
+      setPreview(e.target.result);
+      const data = await extractCarteGriseData(b64, mime);
+      setLoading(false);
+      if (data) onDone(data, e.target.result);
+      else setError("تعذّر استخراج البيانات — راجعها يدوياً");
+    };
+    reader.readAsDataURL(file);
+  }
+
+  return (
+    <div>
+      <h3 style={{color,fontWeight:800,fontSize:17,marginBottom:16,textAlign:"center"}}>
+        🚗 رفع البطاقة الرمادية
+      </h3>
+      <div
+        onClick={()=>!loading&&fileRef.current.click()}
+        onDragOver={e=>e.preventDefault()}
+        onDrop={e=>{e.preventDefault();handleFile(e.dataTransfer.files[0]);}}
+        style={{border:`2px dashed ${color}`,borderRadius:14,padding:"28px 16px",
+          textAlign:"center",cursor:loading?"default":"pointer",background:"#f8fffe",
+          marginBottom:16,transition:"all .2s"}}
+      >
+        {loading ? (
+          <div style={{color,fontSize:14}}>
+            <div style={{width:32,height:32,border:`3px solid ${color}`,borderTopColor:"transparent",
+              borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 10px"}}/>
+            جاري استخراج بيانات المركبة...
+          </div>
+        ) : preview ? (
+          <img src={preview} style={{maxHeight:160,maxWidth:"100%",borderRadius:8,marginBottom:8}} alt="carte grise"/>
+        ) : (
+          <div style={{color:"#9ca3af",fontSize:14}}>
+            <div style={{fontSize:40,marginBottom:8}}>🚗</div>
+            اضغط أو اسحب صورة البطاقة الرمادية هنا
+          </div>
+        )}
+      </div>
+      <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}}
+        onChange={e=>handleFile(e.target.files[0])}/>
+      {error&&<div style={{color:"#dc2626",fontSize:13,marginBottom:8}}>⚠️ {error}</div>}
+      {preview&&!loading&&(
+        <button onClick={()=>fileRef.current.click()}
+          style={{width:"100%",padding:"10px",borderRadius:8,border:`1.5px solid ${color}`,
+            background:"#fff",color,cursor:"pointer",fontWeight:600,fontSize:13}}>
+          🔄 تغيير الصورة
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ==================== VEHICLE REVIEW ====================
+function ReviewVehicle({ form, setForm }) {
+  const inp2 = {width:"100%",padding:"10px 12px",border:"1.5px solid #d1d5db",
+    borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit",background:"#fff"};
+  const fields = [
+    ["رقم التسجيل","numImmatriculation"],["الماركة","marque"],
+    ["النوع","typeVehicule"],["الطراز","modele"],
+    ["رقم الهيكل","numSerie"],["النوع (Genre)","genre"],
+    ["الطاقة","energie"],["القوة","puissance"],
+    ["عدد المقاعد","nbPlaces"],["سنة أول استعمال","anneeCirculation"],
+    ["الرقم السابق","numPrecedent"],
+    ["اسم المالك","proprietaireNom"],["لقب المالك","proprietairePrenom"],
+    ["تاريخ ميلاد المالك","proprietaireDateNaissance"],
+    ["مكان الميلاد","proprietaireLieu"],["عنوان المالك","proprietaireAdresse"],
+  ];
+  return (
+    <div>
+      <h4 style={{color:"#374151",fontWeight:700,fontSize:15,marginBottom:14,borderBottom:"1px solid #e5e7eb",paddingBottom:8}}>
+        🚗 بيانات المركبة
+      </h4>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        {fields.map(([label,key])=>(
+          <div key={key} style={{display:"flex",flexDirection:"column",gap:4}}>
+            <label style={{fontSize:11,fontWeight:600,color:"#6b7280"}}>{label}</label>
+            <input value={form[key]||""} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} style={inp2}/>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function StepBar({ step }) {
-  const steps = ["رفع الرخصة","مراجعة البيانات","تأكيد التسجيل"];
+  const steps = ["رفع الرخصة","البطاقة الرمادية","مراجعة البيانات","تأكيد التسجيل"];
   return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:0,marginBottom:28}}>
       {steps.map((s,i)=>(
@@ -468,6 +580,14 @@ const INITIAL_COMPANY_FORM = {
   nbVehicules: "", typeVehicules: "", notes: "",
 };
 
+const INITIAL_VEHICLE_FORM = {
+  numImmatriculation:"", marque:"", typeVehicule:"", modele:"",
+  numSerie:"", genre:"", energie:"", puissance:"",
+  nbPlaces:"", anneeCirculation:"", numPrecedent:"",
+  proprietaireNom:"", proprietairePrenom:"",
+  proprietaireDateNaissance:"", proprietaireLieu:"", proprietaireAdresse:"",
+};
+
 // ==================== LANDING PAGE ====================
 function LandingPage({ onSelect }) {
   return (
@@ -652,7 +772,7 @@ export default function App() {
         body: JSON.stringify(form)
       });
       const d = await res.json();
-      if (d.success) setStep(2);
+      if (d.success) setStep(3);
       else setErrors([d.error || "خطأ في الحفظ"]);
     } catch(err) {
       setErrors(["خطأ في الاتصال بالخادم"]);
@@ -703,23 +823,42 @@ export default function App() {
 
           {/* Driver */}
           {page==="driver"&&<>
-            {step<2&&<StepBar step={step}/>}
+            {step<3&&<StepBar step={step}/>}
+
+            {/* خطوة 0: رفع رخصة السياقة */}
             {step===0&&<UploadStep onDone={handleExtracted}/>}
+
+            {/* خطوة 1: رفع البطاقة الرمادية */}
             {step===1&&<>
+              <UploadCarteGrise onDone={(data,prev)=>{
+                setForm(f=>({...f,...Object.fromEntries(Object.entries(data).filter(([,v])=>v!==""))}));
+                setStep(2);
+              }}/>
+              <button onClick={()=>setStep(2)} style={{width:"100%",marginTop:12,padding:11,borderRadius:10,
+                border:"1.5px solid #d1d5db",background:"#fff",cursor:"pointer",fontWeight:600,color:"#6b7280",fontSize:13}}>
+                تخطي — إدخال يدوي لاحقاً ←
+              </button>
+            </>}
+
+            {/* خطوة 2: مراجعة البيانات */}
+            {step===2&&<>
               <ReviewStep form={form} setForm={setForm} preview={preview}/>
+              <ReviewVehicle form={form} setForm={setForm}/>
               {errors.length>0&&(
                 <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:"10px 14px",marginTop:14}}>
                   {errors.map(e=><div key={e} style={{color:"#dc2626",fontSize:13,marginBottom:3}}>⚠️ {e}</div>)}
                 </div>
               )}
               <div style={{display:"flex",gap:10,marginTop:22}}>
-                <button onClick={()=>setStep(0)} style={{flex:1,padding:13,borderRadius:10,border:"1.5px solid #d1d5db",background:"#fff",cursor:"pointer",fontWeight:600,color:"#374151"}}>← رجوع</button>
+                <button onClick={()=>setStep(1)} style={{flex:1,padding:13,borderRadius:10,border:"1.5px solid #d1d5db",background:"#fff",cursor:"pointer",fontWeight:600,color:"#374151"}}>← رجوع</button>
                 <button onClick={handleSubmit} disabled={saving} style={{flex:2,padding:13,borderRadius:10,border:"none",background:saving?"#86efac":"#1a6b3c",color:"#fff",cursor:saving?"default":"pointer",fontWeight:700,fontSize:15}}>
                   {saving?"جارٍ الإرسال...":"✅ تأكيد التسجيل"}
                 </button>
               </div>
             </>}
-            {step===2&&<>
+
+            {/* خطوة 3: تأكيد */}
+            {step===3&&<>
               <ConfirmStep form={form} preview={preview}/>
               <button onClick={reset} style={{width:"100%",marginTop:18,padding:13,borderRadius:10,border:"none",background:"#1a6b3c",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:15}}>
                 + تسجيل مترشح آخر
