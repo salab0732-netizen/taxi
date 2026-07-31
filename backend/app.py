@@ -418,6 +418,90 @@ def index():
 def get_html():
     return open(Path(__file__).parent / "index.html", encoding="utf-8").read()
 
+@app.route("/api/ocr-carte-grise", methods=["POST"])
+def ocr_carte_grise():
+    data = request.get_json()
+    if not data or not data.get("image_base64"):
+        return jsonify({"error": "no image"}), 400
+
+    api_key = load_api_key()
+    if not api_key:
+        return jsonify({"error": "Gemini API key not found"}), 500
+
+    prompt = (
+        "You are an expert OCR system for Algerian vehicle registration cards (Carte Grise / بطاقة رمادية).\n"
+        "CRITICAL: Extract ONLY data ACTUALLY VISIBLE in the image. NEVER invent values.\n"
+        "If a field is not clearly readable, return empty string \"\".\n"
+        "Return ONLY a valid JSON object, no markdown, no backticks:\n"
+        "{\"numImmatriculation\":\"\","
+        "\"marque\":\"\",\"typeVehicule\":\"\",\"modele\":\"\","
+        "\"numSerie\":\"\",\"genre\":\"\","
+        "\"energie\":\"\",\"puissance\":\"\","
+        "\"nbPlaces\":\"\",\"anneeCirculation\":\"\","
+        "\"numPrecedent\":\"\","
+        "\"proprietaireNom\":\"\",\"proprietairePrenom\":\"\","
+        "\"proprietaireDateNaissance\":\"\","
+        "\"proprietaireLieu\":\"\",\"proprietaireAdresse\":\"\"}"
+    )
+
+    mime = data.get("mime_type", "image/jpeg")
+    payload = json.dumps({
+        "contents": [{"parts": [
+            {"inline_data": {"mime_type": mime, "data": data["image_base64"]}},
+            {"text": prompt}
+        ]}],
+        "generationConfig": {"temperature": 0, "maxOutputTokens": 2048}
+    }).encode("utf-8")
+
+    MODELS = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b"]
+    last_err = ""
+    model_idx = 0
+    for attempt in range(5):
+        model = MODELS[min(model_idx, len(MODELS)-1)]
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        req = urllib.request.Request(url, data=payload,
+            headers={"Content-Type": "application/json"}, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=45) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+            text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+            text = text.replace("```json","").replace("```","").strip()
+            start = text.find("{"); end = text.rfind("}") + 1
+            if start >= 0 and end > start:
+                text = text[start:end]
+            extracted = json.loads(text)
+            return jsonify({"success": True, "data": extracted})
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8")
+            last_err = f"Gemini HTTP {e.code} ({model}): {body[:200]}"
+            print(f"[carte-grise attempt {attempt+1}] {last_err}")
+            if e.code in (503, 429, 500):
+                model_idx += 1
+                import time; time.sleep(1)
+                continue
+            break
+        except json.JSONDecodeError as e:
+            last_err = f"JSON error: {e}"
+            print(f"[carte-grise attempt {attempt+1}] {last_err}")
+            if attempt >= 4: break
+            import time; time.sleep(1)
+        except Exception as e:
+            last_err = str(e)
+            print(f"[carte-grise attempt {attempt+1}] {last_err}")
+            break
+
+    # Claude fallback
+    claude_key = load_claude_key()
+    if claude_key:
+        try:
+            extracted = ocr_with_claude(data["image_base64"], mime, prompt)
+            return jsonify({"success": True, "data": extracted, "source": "claude"})
+        except Exception as ce:
+            last_err += f" | Claude: {ce}"
+
+    return jsonify({"error": last_err}), 500
+
+
 @app.route("/api/register-company", methods=["POST"])
 def register_company():
     data = request.get_json()
