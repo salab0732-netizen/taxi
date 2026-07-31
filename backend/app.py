@@ -39,6 +39,53 @@ def load_api_key():
             return key
     return os.environ.get("GEMINI_API_KEY", "")
 
+
+def ocr_with_claude(image_base64: str, mime_type: str, prompt: str) -> dict:
+    """OCR بـ Claude API كـ fallback لـ Gemini"""
+    api_key = load_claude_key()
+    if not api_key:
+        raise RuntimeError("claude_key.txt غير موجود")
+
+    payload = json.dumps({
+        "model": "claude-haiku-4-5-20251001",
+        "max_tokens": 1024,
+        "messages": [{
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": mime_type,
+                        "data": image_base64
+                    }
+                },
+                {"type": "text", "text": prompt}
+            ]
+        }]
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=payload,
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01"
+        }
+    )
+    with urllib.request.urlopen(req, timeout=45) as resp:
+        result = json.loads(resp.read().decode("utf-8"))
+
+    text = result["content"][0]["text"].strip()
+    text = text.replace("```json", "").replace("```", "").strip()
+    start = text.find("{")
+    end   = text.rfind("}") + 1
+    if start >= 0 and end > start:
+        text = text[start:end]
+    return json.loads(text)
+
 @app.route("/api/ocr", methods=["POST"])
 def ocr():
     data = request.get_json()
@@ -124,6 +171,22 @@ def ocr():
             last_err = str(e)
             print(f"[attempt {attempt+1}] OCR error: {e}")
             break
+    # ── Gemini فشل كلياً — جرّب Claude كـ fallback ──────────────
+    claude_key = load_claude_key()
+    if claude_key:
+        try:
+            print(f"[Claude fallback] جاري المحاولة...")
+            extracted = ocr_with_claude(
+                data["image_base64"],
+                data.get("mime_type", "image/jpeg"),
+                prompt
+            )
+            print(f"[Claude fallback] ✅ نجح")
+            return jsonify({"success": True, "data": extracted, "source": "claude"})
+        except Exception as ce:
+            print(f"[Claude fallback] ❌ فشل: {ce}")
+            last_err += f" | Claude: {ce}"
+
     return jsonify({"error": last_err}), 500
 
 @app.route("/api/register", methods=["POST"])
