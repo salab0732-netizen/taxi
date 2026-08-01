@@ -873,7 +873,7 @@ function CompanyForm({ onBack }) {
 
 
 // ==================== MAIN APP ====================
-export default function App() {
+function App() {
   const [page, setPage]           = useState("landing"); // landing | driver | company
   const [step, setStep]           = useState(0);
   const [form, setForm]           = useState(INITIAL_FORM);
@@ -1017,10 +1017,6 @@ export default function App() {
 }
 
 ReactDOM.render(React.createElement(App), document.getElementById('root'));
-
-const root = document.getElementById('root');
-root.innerHTML = '';
-ReactDOM.render(React.createElement(App), root);
 </script>
 </body>
 </html>
