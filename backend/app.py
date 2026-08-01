@@ -18,16 +18,95 @@ def get_db():
 
 def init_db():
     with get_db() as conn:
+
+        # ── جدول السائقين (رخصة السياقة كاملة) ──────────────────────
         conn.execute("""CREATE TABLE IF NOT EXISTS candidates (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            created_at TEXT DEFAULT (datetime('now','localtime')),
-            nom_ar TEXT, prenom_ar TEXT, nom_fr TEXT, prenom_fr TEXT,
-            date_naissance TEXT, lieu_naissance TEXT, wilaya_naissance TEXT,
-            nationalite TEXT DEFAULT 'جزائري', nin TEXT UNIQUE,
-            telephone TEXT, telephone2 TEXT, adresse TEXT,
-            num_permis TEXT, date_delivrance TEXT, date_expiration TEXT,
-            lieu_delivrance TEXT, categories TEXT,
-            image_path TEXT, notes TEXT, statut TEXT DEFAULT 'جديد')""")
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at          TEXT DEFAULT (datetime('now','localtime')),
+            -- بيانات الهوية
+            nom_ar              TEXT,
+            prenom_ar           TEXT,
+            nom_fr              TEXT,
+            prenom_fr           TEXT,
+            date_naissance      TEXT,
+            lieu_naissance      TEXT,
+            wilaya_naissance    TEXT,
+            adresse             TEXT,
+            nationalite         TEXT DEFAULT 'جزائري',
+            nin                 TEXT UNIQUE,
+            -- الاتصال
+            telephone           TEXT,
+            telephone2          TEXT,
+            -- رخصة السياقة (كل حقول البطاقة البيومترية والورقية)
+            num_permis          TEXT,
+            date_delivrance     TEXT,
+            date_expiration     TEXT,
+            lieu_delivrance     TEXT,
+            wilaya_delivrance   TEXT,
+            categories          TEXT,
+            -- صورة الرخصة
+            image_permis_path   TEXT,
+            -- الحالة
+            notes               TEXT,
+            statut              TEXT DEFAULT 'جديد')""")
+
+        # ── جدول المركبات (بطاقة التسجيل كاملة) ──────────────────────
+        conn.execute("""CREATE TABLE IF NOT EXISTS vehicles (
+            id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+            candidate_id            INTEGER REFERENCES candidates(id),
+            created_at              TEXT DEFAULT (datetime('now','localtime')),
+            -- رقم التسجيل
+            num_immatriculation     TEXT UNIQUE,
+            num_precedent           TEXT,
+            -- بيانات المركبة
+            marque                  TEXT,
+            type_vehicule           TEXT,
+            modele                  TEXT,
+            num_serie               TEXT,
+            genre                   TEXT,
+            carrosserie             TEXT,
+            energie                 TEXT,
+            puissance               TEXT,
+            nb_places               TEXT,
+            poids_total             TEXT,
+            charge_utile            TEXT,
+            annee_circulation       TEXT,
+            -- بيانات المالك (من البطاقة الرمادية)
+            proprietaire_nom        TEXT,
+            proprietaire_prenom     TEXT,
+            proprietaire_dob        TEXT,
+            proprietaire_lieu       TEXT,
+            proprietaire_adresse    TEXT,
+            proprietaire_commune    TEXT,
+            proprietaire_wilaya     TEXT,
+            -- بيانات التسجيل
+            date_delivrance         TEXT,
+            lieu_delivrance         TEXT,
+            wilaya_delivrance       TEXT,
+            quittance_num           TEXT,
+            quittance_montant       TEXT,
+            quittance_date          TEXT,
+            -- صورة البطاقة الرمادية
+            image_carte_grise_path  TEXT)""")
+
+        # ── جدول الشركات ──────────────────────────────────────────────
+        conn.execute("""CREATE TABLE IF NOT EXISTS companies (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at          TEXT DEFAULT (datetime('now','localtime')),
+            nom_societe         TEXT,
+            registre_commerce   TEXT,
+            numero_agreement    TEXT,
+            nom_responsable     TEXT,
+            prenom_responsable  TEXT,
+            telephone           TEXT,
+            telephone2          TEXT,
+            email               TEXT,
+            adresse             TEXT,
+            wilaya              TEXT,
+            nb_vehicules        TEXT,
+            type_vehicules      TEXT,
+            notes               TEXT)""")
+
         conn.commit()
     print("DB ready:", DB_PATH)
 
@@ -432,19 +511,25 @@ def ocr_carte_grise():
         return jsonify({"error": "Gemini API key not found"}), 500
 
     prompt = (
-        "You are an expert OCR system for Algerian vehicle registration cards (Carte Grise / بطاقة رمادية).\n"
-        "CRITICAL: Extract ONLY data ACTUALLY VISIBLE in the image. NEVER invent values.\n"
-        "If a field is not clearly readable, return empty string \"\".\n"
-        "Return ONLY a valid JSON object, no markdown, no backticks:\n"
-        "{\"numImmatriculation\":\"\","
+        "You are an expert OCR system for Algerian vehicle registration cards (Carte Grise / بطاقة تسجيل مركبة).\n"
+        "CRITICAL RULES:\n"
+        "1. Extract ONLY data ACTUALLY VISIBLE in the image. NEVER invent or guess values.\n"
+        "2. Empty field = empty string \"\". Never put placeholder text.\n"
+        "3. Dates format: YYYY-MM-DD only.\n"
+        "Return ONLY this JSON with all fields filled from the card:\n"
+        "{\"numImmatriculation\":\"\",\"numPrecedent\":\"\","
         "\"marque\":\"\",\"typeVehicule\":\"\",\"modele\":\"\","
-        "\"numSerie\":\"\",\"genre\":\"\","
+        "\"numSerie\":\"\",\"genre\":\"\",\"carrosserie\":\"\","
         "\"energie\":\"\",\"puissance\":\"\","
-        "\"nbPlaces\":\"\",\"anneeCirculation\":\"\","
-        "\"numPrecedent\":\"\","
+        "\"nbPlaces\":\"\",\"poidsTotal\":\"\",\"chargeUtile\":\"\","
+        "\"anneeCirculation\":\"\","
+        "\"dateDelivrance\":\"\",\"lieuDelivrance\":\"\",\"wilayaDelivrance\":\"\","
+        "\"quittanceNum\":\"\",\"quittanceMontant\":\"\",\"quittanceDate\":\"\","
         "\"proprietaireNom\":\"\",\"proprietairePrenom\":\"\","
         "\"proprietaireDateNaissance\":\"\","
-        "\"proprietaireLieu\":\"\",\"proprietaireAdresse\":\"\"}"
+        "\"proprietaireLieu\":\"\",\"proprietaireAdresse\":\"\","
+        "\"proprietaireCommune\":\"\",\"proprietaireWilaya\":\"\","
+        "\"profession\":\"\",\"wilaya\":\"\",\"commune\":\"\",\"numQuittance\":\"\"}"
     )
 
     mime = data.get("mime_type", "image/jpeg")
