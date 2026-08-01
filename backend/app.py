@@ -413,10 +413,13 @@ def static_lib(name):
 
 @app.route("/")
 def index():
-    return Response(get_html(), mimetype="text/html; charset=utf-8")
+    return Response(open(Path(__file__).parent / "index.html", encoding="utf-8").read(),
+                    mimetype="text/html; charset=utf-8")
 
-def get_html():
-    return open(Path(__file__).parent / "index.html", encoding="utf-8").read()
+@app.route("/static/<path:filename>")
+def static_files(filename):
+    static_dir = Path(__file__).parent / "static"
+    return send_from_directory(static_dir, filename)
 
 @app.route("/api/ocr-carte-grise", methods=["POST"])
 def ocr_carte_grise():
