@@ -458,6 +458,15 @@ def static_files(filename):
 
 @app.route("/api/ocr-carte-grise", methods=["POST"])
 def ocr_carte_grise():
+    import traceback
+    try:
+        return _ocr_carte_grise_impl()
+    except Exception as e:
+        tb = traceback.format_exc()
+        print(f"[ocr-carte-grise FATAL] {e}\n{tb}")
+        return jsonify({"error": f"خطأ داخلي: {str(e)}"}), 500
+
+def _ocr_carte_grise_impl():
     data = request.get_json()
     if not data or not data.get("image_base64"):
         return jsonify({"error": "no image"}), 400
@@ -543,7 +552,8 @@ def ocr_carte_grise():
         except Exception as ce:
             last_err += f" | Claude: {ce}"
 
-    return jsonify({"error": last_err}), 500
+    print(f"[ocr-carte-grise] all attempts failed: {last_err}")
+    return jsonify({"error": last_err or "فشل OCR — تحقق من مفتاح API"}), 500
 
 
 @app.route("/api/register-company", methods=["POST"])
@@ -589,4 +599,4 @@ if __name__ == "__main__":
     print("  Taxi Registration Server")
     print("  http://localhost:5000")
     print("="*40 + "\n")
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(host="0.0.0.0", port=5000, debug=True)
