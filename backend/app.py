@@ -18,98 +18,54 @@ def get_db():
 
 def init_db():
     with get_db() as conn:
-
-        # ── جدول السائقين (رخصة السياقة كاملة) ──────────────────────
         conn.execute("""CREATE TABLE IF NOT EXISTS candidates (
-            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-            created_at          TEXT DEFAULT (datetime('now','localtime')),
-            -- بيانات الهوية
-            nom_ar              TEXT,
-            prenom_ar           TEXT,
-            nom_fr              TEXT,
-            prenom_fr           TEXT,
-            date_naissance      TEXT,
-            lieu_naissance      TEXT,
-            wilaya_naissance    TEXT,
-            adresse             TEXT,
-            nationalite         TEXT DEFAULT 'جزائري',
-            nin                 TEXT UNIQUE,
-            -- الاتصال
-            telephone           TEXT,
-            telephone2          TEXT,
-            -- رخصة السياقة (كل حقول البطاقة البيومترية والورقية)
-            num_permis          TEXT,
-            date_delivrance     TEXT,
-            date_expiration     TEXT,
-            lieu_delivrance     TEXT,
-            wilaya_delivrance   TEXT,
-            categories          TEXT,
-            -- صورة الرخصة
-            image_permis_path   TEXT,
-            -- الحالة
-            notes               TEXT,
-            statut              TEXT DEFAULT 'جديد')""")
-
-        # ── جدول المركبات (بطاقة التسجيل كاملة) ──────────────────────
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT DEFAULT (datetime('now','localtime')),
+            nom_ar TEXT, prenom_ar TEXT, nom_fr TEXT, prenom_fr TEXT,
+            date_naissance TEXT, lieu_naissance TEXT, wilaya_naissance TEXT,
+            adresse TEXT, commune TEXT, wilaya TEXT,
+            nationalite TEXT DEFAULT 'جزائري',
+            nin TEXT UNIQUE,
+            telephone TEXT, telephone2 TEXT,
+            num_permis TEXT, date_delivrance TEXT, date_expiration TEXT,
+            lieu_delivrance TEXT, wilaya_delivrance TEXT,
+            categories TEXT,
+            image_permis_path TEXT,
+            notes TEXT,
+            statut TEXT DEFAULT 'جديد'
+        )""")
         conn.execute("""CREATE TABLE IF NOT EXISTS vehicles (
-            id                      INTEGER PRIMARY KEY AUTOINCREMENT,
-            candidate_id            INTEGER REFERENCES candidates(id),
-            created_at              TEXT DEFAULT (datetime('now','localtime')),
-            -- رقم التسجيل
-            num_immatriculation     TEXT UNIQUE,
-            num_precedent           TEXT,
-            -- بيانات المركبة
-            marque                  TEXT,
-            type_vehicule           TEXT,
-            modele                  TEXT,
-            num_serie               TEXT,
-            genre                   TEXT,
-            carrosserie             TEXT,
-            energie                 TEXT,
-            puissance               TEXT,
-            nb_places               TEXT,
-            poids_total             TEXT,
-            charge_utile            TEXT,
-            annee_circulation       TEXT,
-            -- بيانات المالك (من البطاقة الرمادية)
-            proprietaire_nom        TEXT,
-            proprietaire_prenom     TEXT,
-            proprietaire_dob        TEXT,
-            proprietaire_lieu       TEXT,
-            proprietaire_adresse    TEXT,
-            proprietaire_commune    TEXT,
-            proprietaire_wilaya     TEXT,
-            -- بيانات التسجيل
-            date_delivrance         TEXT,
-            lieu_delivrance         TEXT,
-            wilaya_delivrance       TEXT,
-            quittance_num           TEXT,
-            quittance_montant       TEXT,
-            quittance_date          TEXT,
-            -- صورة البطاقة الرمادية
-            image_carte_grise_path  TEXT)""")
-
-        # ── جدول الشركات ──────────────────────────────────────────────
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            candidate_id INTEGER REFERENCES candidates(id),
+            created_at TEXT DEFAULT (datetime('now','localtime')),
+            num_immatriculation TEXT,
+            num_precedent TEXT,
+            marque TEXT, type_vehicule TEXT, modele TEXT,
+            num_serie TEXT, genre TEXT, carrosserie TEXT,
+            energie TEXT, puissance TEXT,
+            nb_places TEXT, poids_total TEXT, charge_utile TEXT,
+            annee_circulation TEXT,
+            date_delivrance TEXT, lieu_delivrance TEXT, wilaya_delivrance TEXT,
+            quittance_num TEXT, quittance_montant TEXT, quittance_date TEXT,
+            proprietaire_nom TEXT, proprietaire_prenom TEXT,
+            proprietaire_dob TEXT, proprietaire_lieu TEXT,
+            proprietaire_adresse TEXT, proprietaire_commune TEXT,
+            proprietaire_wilaya TEXT,
+            profession TEXT,
+            image_carte_grise_path TEXT
+        )""")
         conn.execute("""CREATE TABLE IF NOT EXISTS companies (
-            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-            created_at          TEXT DEFAULT (datetime('now','localtime')),
-            nom_societe         TEXT,
-            registre_commerce   TEXT,
-            numero_agreement    TEXT,
-            nom_responsable     TEXT,
-            prenom_responsable  TEXT,
-            telephone           TEXT,
-            telephone2          TEXT,
-            email               TEXT,
-            adresse             TEXT,
-            wilaya              TEXT,
-            nb_vehicules        TEXT,
-            type_vehicules      TEXT,
-            notes               TEXT)""")
-
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT DEFAULT (datetime('now','localtime')),
+            nom_societe TEXT, registre_commerce TEXT, numero_agreement TEXT,
+            nom_responsable TEXT, prenom_responsable TEXT,
+            telephone TEXT, telephone2 TEXT, email TEXT,
+            adresse TEXT, wilaya TEXT,
+            nb_vehicules TEXT, type_vehicules TEXT,
+            notes TEXT
+        )""")
         conn.commit()
     print("DB ready:", DB_PATH)
-
 def load_api_key():
     key_file = Path(__file__).parent / "gemini_key.txt"
     if key_file.exists():
