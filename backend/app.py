@@ -161,67 +161,50 @@ def ocr():
     }).encode("utf-8")
 
     MODELS = [
-        "gemini-2.5-flash",
-        "gemini-1.5-flash",
-        "gemini-1.5-flash-8b",
+        ("gemini-2.5-flash",   "v1beta"),
+        ("gemini-2.0-flash",   "v1beta"),
+        ("gemini-1.5-flash",   "v1beta"),
+        ("gemini-1.5-flash-8b","v1beta"),
     ]
     last_err = ""
-    model_idx = 0
-    for attempt in range(5):
-        model = MODELS[min(model_idx, len(MODELS)-1)]
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-        req = urllib.request.Request(url, data=payload,
+    for attempt, (model, api_ver) in enumerate(MODELS):
+        url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{model}:generateContent?key={api_key}"
+        req_obj = urllib.request.Request(url, data=payload,
             headers={"Content-Type": "application/json"}, method="POST")
         try:
-            with urllib.request.urlopen(req, timeout=45) as resp:
+            with urllib.request.urlopen(req_obj, timeout=45) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
             text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
-            # تنظيف شامل: إزالة backticks وأي نص قبل/بعد JSON
             text = text.replace("```json", "").replace("```", "").strip()
-            # استخراج أول كتلة JSON صالحة
-            start = text.find("{")
-            end   = text.rfind("}") + 1
+            start = text.find("{"); end = text.rfind("}") + 1
             if start >= 0 and end > start:
                 text = text[start:end]
             extracted = json.loads(text)
-            return jsonify({"success": True, "data": extracted})
+            return jsonify({"success": True, "data": extracted, "source": model})
         except urllib.error.HTTPError as e:
             body = e.read().decode("utf-8")
-            last_err = f"Gemini HTTP {e.code} ({model}): {body[:200]}"
-            print(f"[attempt {attempt+1}] {last_err}")
+            last_err = f"Gemini {e.code} ({model}): {body[:150]}"
+            print(f"[ocr attempt {attempt+1}] {last_err}")
             if e.code in (503, 429, 500):
-                # الموديل مشغول — جرّب الموديل التالي
-                model_idx += 1
                 import time; time.sleep(1)
                 continue
-            break  # خطأ آخر لا فائدة من إعادة المحاولة
+            break
         except json.JSONDecodeError as e:
-            last_err = f"JSON parse error (attempt {attempt+1}): {e}"
-            print(f"[attempt {attempt+1}] OCR JSON error: {e}")
-            print(f"  raw text: {text[:400]!r}")
-            if attempt >= 4:
-                break
+            last_err = f"JSON error ({model}): {e}"
+            print(f"[ocr attempt {attempt+1}] {last_err}")
             import time; time.sleep(1)
         except Exception as e:
             last_err = str(e)
-            print(f"[attempt {attempt+1}] OCR error: {e}")
+            print(f"[ocr attempt {attempt+1}] {last_err}")
             break
-    # ── Gemini فشل كلياً — جرّب Claude كـ fallback ──────────────
-    claude_key = load_claude_key()
-    if claude_key:
-        try:
-            print(f"[Claude fallback] جاري المحاولة...")
+    try:
+        claude_key = load_claude_key()
+        if claude_key:
             extracted = ocr_with_claude(
-                data["image_base64"],
-                data.get("mime_type", "image/jpeg"),
-                prompt
-            )
-            print(f"[Claude fallback] ✅ نجح")
+                data["image_base64"], data.get("mime_type","image/jpeg"), prompt)
             return jsonify({"success": True, "data": extracted, "source": "claude"})
-        except Exception as ce:
-            print(f"[Claude fallback] ❌ فشل: {ce}")
-            last_err += f" | Claude: {ce}"
-
+    except Exception as ce:
+        last_err += f" | Claude: {ce}"
     return jsonify({"error": last_err}), 500
 
 @app.route("/api/register", methods=["POST"])
@@ -506,53 +489,56 @@ def _ocr_carte_grise_impl():
         "generationConfig": {"temperature": 0, "maxOutputTokens": 2048}
     }).encode("utf-8")
 
-    MODELS = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b"]
+    # موديلات Gemini مرتبة — v1 للموديلات الجديدة
+    MODELS = [
+        ("gemini-2.5-flash",   "v1beta"),
+        ("gemini-2.0-flash",   "v1beta"),
+        ("gemini-1.5-flash",   "v1beta"),
+        ("gemini-1.5-flash-8b","v1beta"),
+    ]
     last_err = ""
-    model_idx = 0
-    for attempt in range(5):
-        model = MODELS[min(model_idx, len(MODELS)-1)]
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-        req = urllib.request.Request(url, data=payload,
+    for attempt, (model, api_ver) in enumerate(MODELS):
+        url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{model}:generateContent?key={api_key}"
+        req_obj = urllib.request.Request(url, data=payload,
             headers={"Content-Type": "application/json"}, method="POST")
         try:
-            with urllib.request.urlopen(req, timeout=45) as resp:
+            with urllib.request.urlopen(req_obj, timeout=45) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
             text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
             text = text.replace("```json","").replace("```","").strip()
-            start = text.find("{"); end = text.rfind("}") + 1
-            if start >= 0 and end > start:
-                text = text[start:end]
+            s = text.find("{"); e = text.rfind("}") + 1
+            if s >= 0 and e > s:
+                text = text[s:e]
             extracted = json.loads(text)
-            return jsonify({"success": True, "data": extracted})
-        except urllib.error.HTTPError as e:
-            body = e.read().decode("utf-8")
-            last_err = f"Gemini HTTP {e.code} ({model}): {body[:200]}"
-            print(f"[carte-grise attempt {attempt+1}] {last_err}")
-            if e.code in (503, 429, 500):
-                model_idx += 1
+            return jsonify({"success": True, "data": extracted, "source": model})
+        except urllib.error.HTTPError as ex:
+            body = ex.read().decode("utf-8")
+            last_err = f"Gemini {ex.code} ({model}): {body[:150]}"
+            print(f"[carte-grise] {last_err}")
+            if ex.code in (429, 503, 500):
                 import time; time.sleep(1)
                 continue
             break
-        except json.JSONDecodeError as e:
-            last_err = f"JSON error: {e}"
-            print(f"[carte-grise attempt {attempt+1}] {last_err}")
-            if attempt >= 4: break
+        except json.JSONDecodeError as ex:
+            last_err = f"JSON error ({model}): {ex}"
+            print(f"[carte-grise] {last_err}")
             import time; time.sleep(1)
-        except Exception as e:
-            last_err = str(e)
-            print(f"[carte-grise attempt {attempt+1}] {last_err}")
+        except Exception as ex:
+            last_err = str(ex)
+            print(f"[carte-grise] {last_err}")
             break
 
-    # Claude fallback
-    claude_key = load_claude_key()
-    if claude_key:
-        try:
+    # Claude fallback — إن وُجد مفتاح
+    try:
+        claude_key = load_claude_key()
+        if claude_key:
             extracted = ocr_with_claude(data["image_base64"], mime, prompt)
             return jsonify({"success": True, "data": extracted, "source": "claude"})
-        except Exception as ce:
-            last_err += f" | Claude: {ce}"
+    except Exception as ce:
+        last_err += f" | Claude: {ce}"
+        print(f"[carte-grise] Claude fallback failed: {ce}")
 
-    print(f"[ocr-carte-grise] all attempts failed: {last_err}")
+    print(f"[carte-grise] all failed: {last_err}")
     return jsonify({"error": last_err or "فشل OCR — تحقق من مفتاح API"}), 500
 
 
