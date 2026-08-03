@@ -67,13 +67,26 @@ def init_db():
         conn.commit()
     print("DB ready:", DB_PATH)
 def load_api_key():
-    key_file = Path(__file__).parent / "gemini_key.txt"
-    if key_file.exists():
-        key = key_file.read_text(encoding="utf-8").strip()
-        # قبول كلا الصيغتين: AIzaSy... (قديمة) و AQ.Ab8... (جديدة)
-        if key and not key.startswith("ضع") and len(key) > 10:
-            return key
-    return os.environ.get("GEMINI_API_KEY", "")
+    # البحث عن المفتاح في عدة أماكن محتملة
+    search_dirs = [
+        Path(__file__).parent,           # نفس مجلد app.py
+        Path(__file__).parent.parent,    # المجلد الأب
+        Path.home(),                     # مجلد المستخدم
+        Path("C:/Users") / os.environ.get("USERNAME","") / "Documents",
+    ]
+    for d in search_dirs:
+        key_file = d / "gemini_key.txt"
+        if key_file.exists():
+            key = key_file.read_text(encoding="utf-8").strip()
+            if key and not key.startswith("ضع") and len(key) > 10:
+                print(f"[Gemini] key loaded from: {key_file} ({key[:8]}...)")
+                return key
+    # متغير البيئة كملاذ أخير
+    env_key = os.environ.get("GEMINI_API_KEY", "")
+    if env_key:
+        return env_key
+    print("[Gemini] ⚠️ gemini_key.txt not found in any search path")
+    return ""
 
 
 def ocr_with_claude(image_base64: str, mime_type: str, prompt: str) -> dict:
@@ -460,7 +473,7 @@ def _ocr_carte_grise_impl():
 
     api_key = load_api_key()
     if not api_key:
-        return jsonify({"error": "Gemini API key not found"}), 500
+        return jsonify({"error": "Gemini API key not found — ضع gemini_key.txt في مجلد backend"}), 500
     print(f"[carte-grise] using key: {api_key[:10]}... len={len(api_key)}")
 
     prompt = (
