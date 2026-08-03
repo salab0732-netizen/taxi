@@ -163,8 +163,8 @@ def ocr():
     MODELS = [
         ("gemini-2.5-flash",   "v1beta"),
         ("gemini-2.0-flash",   "v1beta"),
-        ("gemini-1.5-flash",   "v1beta"),
-        ("gemini-1.5-flash-8b","v1beta"),
+        ("gemini-1.5-flash",   "v1"),
+        ("gemini-1.5-flash-8b","v1"),
     ]
     last_err = ""
     for attempt, (model, api_ver) in enumerate(MODELS):
@@ -198,11 +198,13 @@ def ocr():
             print(f"[ocr attempt {attempt+1}] {last_err}")
             break
     try:
-        claude_key = load_claude_key()
-        if claude_key:
-            extracted = ocr_with_claude(
-                data["image_base64"], data.get("mime_type","image/jpeg"), prompt)
-            return jsonify({"success": True, "data": extracted, "source": "claude"})
+        _key_file = Path(__file__).parent / "claude_key.txt"
+        if _key_file.exists():
+            _ckey = _key_file.read_text(encoding="utf-8").strip()
+            if _ckey and not _ckey.startswith("#"):
+                extracted = ocr_with_claude(
+                    data["image_base64"], data.get("mime_type","image/jpeg"), prompt)
+                return jsonify({"success": True, "data": extracted, "source": "claude"})
     except Exception as ce:
         last_err += f" | Claude: {ce}"
     return jsonify({"error": last_err}), 500
@@ -493,8 +495,8 @@ def _ocr_carte_grise_impl():
     MODELS = [
         ("gemini-2.5-flash",   "v1beta"),
         ("gemini-2.0-flash",   "v1beta"),
-        ("gemini-1.5-flash",   "v1beta"),
-        ("gemini-1.5-flash-8b","v1beta"),
+        ("gemini-1.5-flash",   "v1"),
+        ("gemini-1.5-flash-8b","v1"),
     ]
     last_err = ""
     for attempt, (model, api_ver) in enumerate(MODELS):
@@ -529,11 +531,14 @@ def _ocr_carte_grise_impl():
             break
 
     # Claude fallback — إن وُجد مفتاح
+    # Claude fallback — قراءة المفتاح مباشرة
     try:
-        claude_key = load_claude_key()
-        if claude_key:
-            extracted = ocr_with_claude(data["image_base64"], mime, prompt)
-            return jsonify({"success": True, "data": extracted, "source": "claude"})
+        _key_file = Path(__file__).parent / "claude_key.txt"
+        if _key_file.exists():
+            _ckey = _key_file.read_text(encoding="utf-8").strip()
+            if _ckey and not _ckey.startswith("#"):
+                extracted = ocr_with_claude(data["image_base64"], mime, prompt)
+                return jsonify({"success": True, "data": extracted, "source": "claude"})
     except Exception as ce:
         last_err += f" | Claude: {ce}"
         print(f"[carte-grise] Claude fallback failed: {ce}")
