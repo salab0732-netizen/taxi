@@ -70,7 +70,8 @@ def load_api_key():
     key_file = Path(__file__).parent / "gemini_key.txt"
     if key_file.exists():
         key = key_file.read_text(encoding="utf-8").strip()
-        if key and not key.startswith("ضع"):
+        # قبول كلا الصيغتين: AIzaSy... (قديمة) و AQ.Ab8... (جديدة)
+        if key and not key.startswith("ضع") and len(key) > 10:
             return key
     return os.environ.get("GEMINI_API_KEY", "")
 
@@ -161,10 +162,11 @@ def ocr():
     }).encode("utf-8")
 
     MODELS = [
-        ("gemini-2.5-flash",   "v1beta"),
-        ("gemini-2.0-flash",   "v1beta"),
-        ("gemini-1.5-flash",   "v1"),
-        ("gemini-1.5-flash-8b","v1"),
+        ("gemini-2.5-flash",        "v1beta"),
+        ("gemini-2.0-flash",        "v1beta"),
+        ("gemini-2.0-flash-lite",   "v1beta"),
+        ("gemini-1.5-flash",        "v1beta"),
+        ("gemini-1.5-flash-8b",     "v1beta"),
     ]
     last_err = ""
     for attempt, (model, api_ver) in enumerate(MODELS):
@@ -459,6 +461,7 @@ def _ocr_carte_grise_impl():
     api_key = load_api_key()
     if not api_key:
         return jsonify({"error": "Gemini API key not found"}), 500
+    print(f"[carte-grise] using key: {api_key[:10]}... len={len(api_key)}")
 
     prompt = (
         "You are an expert OCR system for Algerian vehicle registration cards (Carte Grise / بطاقة تسجيل مركبة).\n"
@@ -493,10 +496,11 @@ def _ocr_carte_grise_impl():
 
     # موديلات Gemini مرتبة — v1 للموديلات الجديدة
     MODELS = [
-        ("gemini-2.5-flash",   "v1beta"),
-        ("gemini-2.0-flash",   "v1beta"),
-        ("gemini-1.5-flash",   "v1"),
-        ("gemini-1.5-flash-8b","v1"),
+        ("gemini-2.5-flash",        "v1beta"),
+        ("gemini-2.0-flash",        "v1beta"),
+        ("gemini-2.0-flash-lite",   "v1beta"),
+        ("gemini-1.5-flash",        "v1beta"),
+        ("gemini-1.5-flash-8b",     "v1beta"),
     ]
     last_err = ""
     for attempt, (model, api_ver) in enumerate(MODELS):
