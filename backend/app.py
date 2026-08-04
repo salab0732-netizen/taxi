@@ -183,9 +183,22 @@ def ocr():
     ]
     last_err = ""
     for attempt, (model, api_ver) in enumerate(MODELS):
-        url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{model}:generateContent?key={api_key}"
-        req_obj = urllib.request.Request(url, data=payload,
-            headers={"Content-Type": "application/json"}, method="POST")
+        # تحديد طريقة المصادقة حسب نوع المفتاح
+        # AIzaSy... → API Key في URL
+        # AQ.Ab8... → OAuth2 Bearer token في Header
+        if api_key.startswith("AIza"):
+            url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{model}:generateContent?key={api_key}"
+            req_obj = urllib.request.Request(url, data=payload,
+                headers={"Content-Type": "application/json"}, method="POST")
+        else:
+            # OAuth2 / new format key — إرسال في header
+            url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{model}:generateContent"
+            req_obj = urllib.request.Request(url, data=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {api_key}",
+                    "x-goog-api-key": api_key,
+                }, method="POST")
         try:
             with urllib.request.urlopen(req_obj, timeout=45) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
@@ -517,9 +530,22 @@ def _ocr_carte_grise_impl():
     ]
     last_err = ""
     for attempt, (model, api_ver) in enumerate(MODELS):
-        url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{model}:generateContent?key={api_key}"
-        req_obj = urllib.request.Request(url, data=payload,
-            headers={"Content-Type": "application/json"}, method="POST")
+        # تحديد طريقة المصادقة حسب نوع المفتاح
+        # AIzaSy... → API Key في URL
+        # AQ.Ab8... → OAuth2 Bearer token في Header
+        if api_key.startswith("AIza"):
+            url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{model}:generateContent?key={api_key}"
+            req_obj = urllib.request.Request(url, data=payload,
+                headers={"Content-Type": "application/json"}, method="POST")
+        else:
+            # OAuth2 / new format key — إرسال في header
+            url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{model}:generateContent"
+            req_obj = urllib.request.Request(url, data=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {api_key}",
+                    "x-goog-api-key": api_key,
+                }, method="POST")
         try:
             with urllib.request.urlopen(req_obj, timeout=45) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
