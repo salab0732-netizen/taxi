@@ -67,25 +67,52 @@ def init_db():
         conn.commit()
     print("DB ready:", DB_PATH)
 def load_api_key():
-    # البحث عن المفتاح في عدة أماكن محتملة
-    search_dirs = [
-        Path(__file__).parent,           # نفس مجلد app.py
-        Path(__file__).parent.parent,    # المجلد الأب
-        Path.home(),                     # مجلد المستخدم
-        Path("C:/Users") / os.environ.get("USERNAME","") / "Documents",
-    ]
-    for d in search_dirs:
+    import sys
+    # جمع كل المسارات الممكنة
+    candidates = set()
+
+    # 1. مجلد __file__ (app.py)
+    try: candidates.add(Path(__file__).resolve().parent)
+    except: pass
+
+    # 2. مجلد العمل الحالي
+    try: candidates.add(Path(os.getcwd()))
+    except: pass
+
+    # 3. مجلد السكريبت المشغّل (sys.argv[0])
+    try: candidates.add(Path(sys.argv[0]).resolve().parent)
+    except: pass
+
+    # 4. مجلد المستخدم
+    try: candidates.add(Path.home())
+    except: pass
+
+    # 5. مسارات ثابتة شائعة على Windows
+    for fixed in [
+        r"F:	axi-registration	axi-mainackend",
+        r"F:\Downloads	axi-mainackend",
+        r"C:	axi-registration	axi-mainackend",
+    ]:
+        candidates.add(Path(fixed))
+
+    print(f"[Gemini] searching in {len(candidates)} paths...")
+    for d in candidates:
         key_file = d / "gemini_key.txt"
-        if key_file.exists():
-            key = key_file.read_text(encoding="utf-8").strip()
-            if key and not key.startswith("ضع") and len(key) > 10:
-                print(f"[Gemini] key loaded from: {key_file} ({key[:8]}...)")
-                return key
-    # متغير البيئة كملاذ أخير
+        try:
+            if key_file.exists():
+                key = key_file.read_text(encoding="utf-8").strip()
+                if key and not key.startswith("ضع") and len(key) > 10:
+                    print(f"[Gemini] ✅ key loaded from: {key_file} ({key[:8]}...)")
+                    return key
+        except: pass
+
+    # متغير البيئة
     env_key = os.environ.get("GEMINI_API_KEY", "")
     if env_key:
+        print("[Gemini] ✅ key from environment variable")
         return env_key
-    print("[Gemini] ⚠️ gemini_key.txt not found in any search path")
+
+    print(f"[Gemini] ⚠️ not found. Searched: {[str(d) for d in candidates]}")
     return ""
 
 
