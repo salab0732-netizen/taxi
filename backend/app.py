@@ -66,6 +66,7 @@ def init_db():
         )""")
         conn.commit()
     print("DB ready:", DB_PATH)
+
 def load_api_key():
     import sys
     # جمع كل المسارات الممكنة
@@ -87,13 +88,12 @@ def load_api_key():
     try: candidates.add(Path.home())
     except: pass
 
-    # 5. مسارات ثابتة شائعة على Windows
-    for fixed in [
-        r"F:	axi-registration	axi-mainackend",
-        r"F:\Downloads	axi-mainackend",
-        r"C:	axi-registration	axi-mainackend",
-    ]:
-        candidates.add(Path(fixed))
+    # تنظيف قائمة المسارات الثابتة (إن وُجدت) — تركها فارغة أو أضف مسارات مفيدة
+    fixed_paths = []
+    for fixed in fixed_paths:
+        try:
+            candidates.add(Path(fixed))
+        except: pass
 
     print(f"[Gemini] searching in {len(candidates)} paths...")
     for d in candidates:
@@ -113,6 +113,24 @@ def load_api_key():
         return env_key
 
     print(f"[Gemini] ⚠️ not found. Searched: {[str(d) for d in candidates]}")
+    return ""
+
+
+def load_claude_key():
+    # بسيط: قراءة ملف claude_key.txt أو متغير البيئة CLAUDE_API_KEY
+    try:
+        kf = Path(__file__).parent / "claude_key.txt"
+        if kf.exists():
+            k = kf.read_text(encoding="utf-8").strip()
+            if k and not k.startswith("#"):
+                print(f"[Claude] key loaded from {kf}")
+                return k
+    except Exception:
+        pass
+    env = os.environ.get("CLAUDE_API_KEY", "")
+    if env:
+        print("[Claude] key from environment variable")
+        return env
     return ""
 
 
@@ -187,7 +205,7 @@ def ocr():
         "\"dateNaissance\":\"\",\"lieuNaissance\":\"\",\"wilayaNaissance\":\"\","
         "\"nin\":\"\",\"numPermis\":\"\","
         "\"dateDelivrance\":\"\",\"dateExpiration\":\"\",\"lieuDelivrance\":\"\","
-        "\"categories\":[]}"
+        "\"categories\":[]}" 
     )
 
     mime = data.get("mime_type", "image/jpeg")
@@ -210,15 +228,11 @@ def ocr():
     ]
     last_err = ""
     for attempt, (model, api_ver) in enumerate(MODELS):
-        # تحديد طريقة المصادقة حسب نوع المفتاح
-        # AIzaSy... → API Key في URL
-        # AQ.Ab8... → OAuth2 Bearer token في Header
         if api_key.startswith("AIza"):
             url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{model}:generateContent?key={api_key}"
             req_obj = urllib.request.Request(url, data=payload,
                 headers={"Content-Type": "application/json"}, method="POST")
         else:
-            # OAuth2 / new format key — إرسال في header
             url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{model}:generateContent"
             req_obj = urllib.request.Request(url, data=payload,
                 headers={
@@ -264,6 +278,157 @@ def ocr():
         last_err += f" | Claude: {ce}"
     return jsonify({"error": last_err}), 500
 
+@app.route("/api/ocr-carte-grise", methods=["POST"])
+def ocr_carte_grise():
+    import traceback
+    try:
+        return _ocr_carte_grise_impl()
+    except Exception as e:
+        tb = traceback.format_exc()
+        print(f"[ocr-carte-grise FATAL] {e}\n{tb}")
+        return jsonify({"error": f"خطأ داخلي: {str(e)}"}), 500
+
+def _ocr_carte_grise_impl():
+    data = request.get_json()
+    if not data or not data.get("image_base64"):
+        return jsonify({"error": "no image"}), 400
+
+    # Mock mode for local testing (no API key needed)
+    if os.environ.get("MOCK_OCR") == "1" or data.get("image_base64") == "dGVzdA==":
+        fake = {
+          "numImmatriculation": "DZ-000-AA",
+          "numPrecedent": "",
+          "marque": "FAKE",
+          "typeVehicule": "",
+          "modele": "",
+          "numSerie": "",
+          "genre": "",
+          "carrosserie": "",
+          "energie": "",
+          "puissance": "",
+          "nbPlaces": "",
+          "poidsTotal": "",
+          "chargeUtile": "",
+          "anneeCirculation": "",
+          "dateDelivrance": "",
+          "lieuDelivrance": "",
+          "wilayaDelivrance": "",
+          "quittanceNum": "",
+          "quittanceMontant": "",
+          "quittanceDate": "",
+          "proprietaireNom": "",
+          "proprietairePrenom": "",
+          "proprietaireDateNaissance": "",
+          "proprietaireLieu": "",
+          "proprietaireAdresse": "",
+          "proprietaireCommune": "",
+          "proprietaireWilaya": "",
+          "profession": "",
+          "wilaya": "",
+          "commune": "",
+          "numQuittance": ""
+        }
+        return jsonify({"success": True, "data": fake, "source": "mock"})
+
+    api_key = load_api_key()
+    if not api_key:
+        return jsonify({"error": "Gemini API key not found — ضع gemini_key.txt في مجلد backend"}), 500
+    print(f"[carte-grise] using key: {api_key[:10]}... len={len(api_key)}")
+
+    prompt = (
+        "You are an expert OCR system for Algerian vehicle registration cards (Carte Grise / بطاقة تسجيل مركبة).\n"
+        "CRITICAL RULES:\n"
+        "1. Extract ONLY data ACTUALLY VISIBLE in the image. NEVER invent or guess values.\n"
+        "2. Empty field = empty string \"\". Never put placeholder text.\n"
+        "3. Dates format: YYYY-MM-DD only.\n"
+        "Return ONLY this JSON with all fields filled from the card:\n"
+        "{\"numImmatriculation\":\"\",\"numPrecedent\":\"\","
+        "\"marque\":\"\",\"typeVehicule\":\"\",\"modele\":\"\","
+        "\"numSerie\":\"\",\"genre\":\"\",\"carrosserie\":\"\","
+        "\"energie\":\"\",\"puissance\":\"\","
+        "\"nbPlaces\":\"\",\"poidsTotal\":\"\",\"chargeUtile\":\"\","
+        "\"anneeCirculation\":\"\","
+        "\"dateDelivrance\":\"\",\"lieuDelivrance\":\"\",\"wilayaDelivrance\":\"\","
+        "\"quittanceNum\":\"\",\"quittanceMontant\":\"\",\"quittanceDate\":\"\","
+        "\"proprietaireNom\":\"\",\"proprietairePrenom\":\"\","
+        "\"proprietaireDateNaissance\":\"\","
+        "\"proprietaireLieu\":\"\",\"proprietaireAdresse\":\"\","
+        "\"proprietaireCommune\":\"\",\"proprietaireWilaya\":\"\","
+        "\"profession\":\"\",\"wilaya\":\"\",\"commune\":\"\",\"numQuittance\":\"\"}"
+    )
+
+    mime = data.get("mime_type", "image/jpeg")
+    payload = json.dumps({
+        "contents": [{"parts": [
+            {"inline_data": {"mime_type": mime, "data": data["image_base64"]}},
+            {"text": prompt}
+        ]}],
+        "generationConfig": {"temperature": 0, "maxOutputTokens": 2048}
+    }).encode("utf-8")
+
+    MODELS = [
+        ("gemini-2.5-flash",        "v1beta"),
+        ("gemini-2.0-flash",        "v1beta"),
+        ("gemini-2.0-flash-lite",   "v1beta"),
+        ("gemini-1.5-flash",        "v1beta"),
+        ("gemini-1.5-flash-8b",     "v1beta"),
+    ]
+    last_err = ""
+    for attempt, (model, api_ver) in enumerate(MODELS):
+        if api_key.startswith("AIza"):
+            url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{model}:generateContent?key={api_key}"
+            req_obj = urllib.request.Request(url, data=payload,
+                headers={"Content-Type": "application/json"}, method="POST")
+        else:
+            url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{model}:generateContent"
+            req_obj = urllib.request.Request(url, data=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {api_key}",
+                    "x-goog-api-key": api_key,
+                }, method="POST")
+        try:
+            with urllib.request.urlopen(req_obj, timeout=45) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+            text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+            text = text.replace("```json","").replace("```","")
+            s = text.find("{"); e = text.rfind("}") + 1
+            if s >= 0 and e > s:
+                text = text[s:e]
+            extracted = json.loads(text)
+            return jsonify({"success": True, "data": extracted, "source": model})
+        except urllib.error.HTTPError as ex:
+            body = ex.read().decode("utf-8")
+            last_err = f"Gemini {ex.code} ({model}): {body[:150]}"
+            print(f"[carte-grise] {last_err}")
+            if ex.code in (429, 503, 500):
+                import time; time.sleep(1)
+                continue
+            break
+        except json.JSONDecodeError as ex:
+            last_err = f"JSON error ({model}): {ex}"
+            print(f"[carte-grise] {last_err}")
+            import time; time.sleep(1)
+        except Exception as ex:
+            last_err = str(ex)
+            print(f"[carte-grise] {last_err}")
+            break
+
+    try:
+        _key_file = Path(__file__).parent / "claude_key.txt"
+        if _key_file.exists():
+            _ckey = _key_file.read_text(encoding="utf-8").strip()
+            if _ckey and not _ckey.startswith("#"):
+                extracted = ocr_with_claude(data["image_base64"], mime, prompt)
+                return jsonify({"success": True, "data": extracted, "source": "claude"})
+    except Exception as ce:
+        last_err += f" | Claude: {ce}"
+        print(f"[carte-grise] Claude fallback failed: {ce}")
+
+    print(f"[carte-grise] all failed: {last_err}")
+    return jsonify({"error": last_err or "فشل OCR — تحقق من مفتاح API"}), 500
+
+
 @app.route("/api/register", methods=["POST"])
 def register():
     data = request.get_json()
@@ -285,7 +450,7 @@ def register():
             (nom_ar,prenom_ar,nom_fr,prenom_fr,date_naissance,lieu_naissance,
              wilaya_naissance,nationalite,nin,telephone,telephone2,adresse,
              num_permis,date_delivrance,date_expiration,lieu_delivrance,
-             categories,image_path,notes)
+             categories,image_permis_path,notes)
             VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (data.get("nomAr"), data.get("prenomAr"), data.get("nom"), data.get("prenom"),
              data.get("dateNaissance"), data.get("lieuNaissance"), data.get("wilayaNaissance"),
@@ -495,127 +660,6 @@ def index():
 def static_files(filename):
     static_dir = Path(__file__).parent / "static"
     return send_from_directory(static_dir, filename)
-
-@app.route("/api/ocr-carte-grise", methods=["POST"])
-def ocr_carte_grise():
-    import traceback
-    try:
-        return _ocr_carte_grise_impl()
-    except Exception as e:
-        tb = traceback.format_exc()
-        print(f"[ocr-carte-grise FATAL] {e}\n{tb}")
-        return jsonify({"error": f"خطأ داخلي: {str(e)}"}), 500
-
-def _ocr_carte_grise_impl():
-    data = request.get_json()
-    if not data or not data.get("image_base64"):
-        return jsonify({"error": "no image"}), 400
-
-    api_key = load_api_key()
-    if not api_key:
-        return jsonify({"error": "Gemini API key not found — ضع gemini_key.txt في مجلد backend"}), 500
-    print(f"[carte-grise] using key: {api_key[:10]}... len={len(api_key)}")
-
-    prompt = (
-        "You are an expert OCR system for Algerian vehicle registration cards (Carte Grise / بطاقة تسجيل مركبة).\n"
-        "CRITICAL RULES:\n"
-        "1. Extract ONLY data ACTUALLY VISIBLE in the image. NEVER invent or guess values.\n"
-        "2. Empty field = empty string \"\". Never put placeholder text.\n"
-        "3. Dates format: YYYY-MM-DD only.\n"
-        "Return ONLY this JSON with all fields filled from the card:\n"
-        "{\"numImmatriculation\":\"\",\"numPrecedent\":\"\","
-        "\"marque\":\"\",\"typeVehicule\":\"\",\"modele\":\"\","
-        "\"numSerie\":\"\",\"genre\":\"\",\"carrosserie\":\"\","
-        "\"energie\":\"\",\"puissance\":\"\","
-        "\"nbPlaces\":\"\",\"poidsTotal\":\"\",\"chargeUtile\":\"\","
-        "\"anneeCirculation\":\"\","
-        "\"dateDelivrance\":\"\",\"lieuDelivrance\":\"\",\"wilayaDelivrance\":\"\","
-        "\"quittanceNum\":\"\",\"quittanceMontant\":\"\",\"quittanceDate\":\"\","
-        "\"proprietaireNom\":\"\",\"proprietairePrenom\":\"\","
-        "\"proprietaireDateNaissance\":\"\","
-        "\"proprietaireLieu\":\"\",\"proprietaireAdresse\":\"\","
-        "\"proprietaireCommune\":\"\",\"proprietaireWilaya\":\"\","
-        "\"profession\":\"\",\"wilaya\":\"\",\"commune\":\"\",\"numQuittance\":\"\"}"
-    )
-
-    mime = data.get("mime_type", "image/jpeg")
-    payload = json.dumps({
-        "contents": [{"parts": [
-            {"inline_data": {"mime_type": mime, "data": data["image_base64"]}},
-            {"text": prompt}
-        ]}],
-        "generationConfig": {"temperature": 0, "maxOutputTokens": 2048}
-    }).encode("utf-8")
-
-    # موديلات Gemini مرتبة — v1 للموديلات الجديدة
-    MODELS = [
-        ("gemini-2.5-flash",        "v1beta"),
-        ("gemini-2.0-flash",        "v1beta"),
-        ("gemini-2.0-flash-lite",   "v1beta"),
-        ("gemini-1.5-flash",        "v1beta"),
-        ("gemini-1.5-flash-8b",     "v1beta"),
-    ]
-    last_err = ""
-    for attempt, (model, api_ver) in enumerate(MODELS):
-        # تحديد طريقة المصادقة حسب نوع المفتاح
-        # AIzaSy... → API Key في URL
-        # AQ.Ab8... → OAuth2 Bearer token في Header
-        if api_key.startswith("AIza"):
-            url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{model}:generateContent?key={api_key}"
-            req_obj = urllib.request.Request(url, data=payload,
-                headers={"Content-Type": "application/json"}, method="POST")
-        else:
-            # OAuth2 / new format key — إرسال في header
-            url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{model}:generateContent"
-            req_obj = urllib.request.Request(url, data=payload,
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {api_key}",
-                    "x-goog-api-key": api_key,
-                }, method="POST")
-        try:
-            with urllib.request.urlopen(req_obj, timeout=45) as resp:
-                result = json.loads(resp.read().decode("utf-8"))
-            text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
-            text = text.replace("```json","").replace("```","").strip()
-            s = text.find("{"); e = text.rfind("}") + 1
-            if s >= 0 and e > s:
-                text = text[s:e]
-            extracted = json.loads(text)
-            return jsonify({"success": True, "data": extracted, "source": model})
-        except urllib.error.HTTPError as ex:
-            body = ex.read().decode("utf-8")
-            last_err = f"Gemini {ex.code} ({model}): {body[:150]}"
-            print(f"[carte-grise] {last_err}")
-            if ex.code in (429, 503, 500):
-                import time; time.sleep(1)
-                continue
-            break
-        except json.JSONDecodeError as ex:
-            last_err = f"JSON error ({model}): {ex}"
-            print(f"[carte-grise] {last_err}")
-            import time; time.sleep(1)
-        except Exception as ex:
-            last_err = str(ex)
-            print(f"[carte-grise] {last_err}")
-            break
-
-    # Claude fallback — إن وُجد مفتاح
-    # Claude fallback — قراءة المفتاح مباشرة
-    try:
-        _key_file = Path(__file__).parent / "claude_key.txt"
-        if _key_file.exists():
-            _ckey = _key_file.read_text(encoding="utf-8").strip()
-            if _ckey and not _ckey.startswith("#"):
-                extracted = ocr_with_claude(data["image_base64"], mime, prompt)
-                return jsonify({"success": True, "data": extracted, "source": "claude"})
-    except Exception as ce:
-        last_err += f" | Claude: {ce}"
-        print(f"[carte-grise] Claude fallback failed: {ce}")
-
-    print(f"[carte-grise] all failed: {last_err}")
-    return jsonify({"error": last_err or "فشل OCR — تحقق من مفتاح API"}), 500
-
 
 @app.route("/api/register-company", methods=["POST"])
 def register_company():
