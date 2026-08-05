@@ -141,11 +141,7 @@ def _extract_json(result):
 
 # ── OCR عام (يجرّب Gemini ثم Claude) ─────────────────────────
 GEMINI_MODELS = [
-    ("gemini-2.5-flash",      "v1beta"),
-    ("gemini-2.0-flash",      "v1beta"),
-    ("gemini-2.0-flash-lite", "v1beta"),
-    ("gemini-1.5-flash",      "v1beta"),
-    ("gemini-1.5-flash-8b",   "v1beta"),
+    ("gemini-2.5-flash", "v1beta"),
 ]
 
 def run_ocr(image_b64, mime, prompt):
@@ -163,26 +159,28 @@ def run_ocr(image_b64, mime, prompt):
 
     last_err = ""
     if api_key:
-        for model, ver in GEMINI_MODELS:
+        model, ver = GEMINI_MODELS[0]
+        MAX_RETRIES = 4
+        for attempt in range(MAX_RETRIES):
             try:
                 result = _gemini_request(model, ver, payload, api_key)
                 data   = _extract_json(result)
-                print(f"[OCR] ✅ {model}")
+                print(f"[OCR] ✅ {model} (attempt {attempt+1})")
                 return data, model
             except urllib.error.HTTPError as ex:
                 body = ex.read().decode("utf-8")
                 last_err = f"HTTP {ex.code} ({model}): {body[:120]}"
-                print(f"[OCR] {last_err}")
+                print(f"[OCR attempt {attempt+1}] {last_err}")
                 if ex.code not in (429, 500, 503):
                     break
-                import time; time.sleep(1)
+                import time; time.sleep(2)
             except json.JSONDecodeError as ex:
                 last_err = f"JSON ({model}): {ex}"
-                print(f"[OCR] {last_err}")
+                print(f"[OCR attempt {attempt+1}] {last_err}")
                 import time; time.sleep(1)
             except Exception as ex:
                 last_err = str(ex)
-                print(f"[OCR] {last_err}")
+                print(f"[OCR attempt {attempt+1}] {last_err}")
                 break
     else:
         last_err = "Gemini key missing"
