@@ -124,7 +124,20 @@ def _extract_json(result):
     s, e = text.find("{"), text.rfind("}") + 1
     if s >= 0 < e:
         text = text[s:e]
-    return json.loads(text)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as ex:
+        print(f"[OCR] JSON parse failed: {ex}")
+        print(f"[OCR] raw text (first 500 chars): {text[:500]!r}")
+        # محاولة إصلاح شائعة: فواصل زائدة قبل } أو ]
+        import re
+        fixed = re.sub(r',\s*([}\]])', r'\1', text)
+        try:
+            result2 = json.loads(fixed)
+            print("[OCR] ✅ fixed by removing trailing commas")
+            return result2
+        except json.JSONDecodeError:
+            raise ex
 
 # ── OCR عام (يجرّب Gemini ثم Claude) ─────────────────────────
 GEMINI_MODELS = [
