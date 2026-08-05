@@ -4,7 +4,7 @@ import sqlite3, base64, json, urllib.request, urllib.error, os, sys
 from datetime import datetime
 from pathlib import Path
 
-app  = Flask(__name__)
+app  = Flask(__name__, static_folder=None)  # نُعطّل static الافتراضي — نتحكم به يدوياً في route مخصص
 CORS(app)
 
 # ── مسارات ثابتة ──────────────────────────────────────────────
