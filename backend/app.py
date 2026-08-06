@@ -166,7 +166,11 @@ def run_ocr(image_b64, mime, prompt):
             {"inline_data": {"mime_type": mime, "data": image_b64}},
             {"text": prompt}
         ]}],
-        "generationConfig": {"temperature": 0, "maxOutputTokens": 2048}
+        "generationConfig": {
+            "temperature": 0,
+            "maxOutputTokens": 4096,
+            "responseMimeType": "application/json"
+        }
     }).encode("utf-8")
 
     last_err = ""
