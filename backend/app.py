@@ -38,6 +38,7 @@ def init_db():
         conn.execute("""CREATE TABLE IF NOT EXISTS vehicles (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             candidate_id INTEGER REFERENCES candidates(id),
+            company_id   INTEGER REFERENCES companies(id),
             created_at TEXT DEFAULT (datetime('now','localtime')),
             num_immatriculation TEXT, num_precedent TEXT,
             marque TEXT, type_vehicule TEXT, modele TEXT,
@@ -377,8 +378,11 @@ def register_company():
     required = ["nomSociete","registreCommerce","telephone","wilaya","nomResponsable"]
     missing  = [f for f in required if not data.get(f,"").strip()]
     if missing: return jsonify({"error": f"حقول مطلوبة: {', '.join(missing)}"}), 400
+
     with get_db() as conn:
         c = conn.cursor()
+
+        # 1) حفظ الشركة نفسها
         c.execute("""INSERT INTO companies
             (created_at,nom_societe,registre_commerce,numero_agreement,
              nom_responsable,prenom_responsable,telephone,telephone2,
@@ -393,8 +397,89 @@ def register_company():
             data.get("nbVehicules",""),     data.get("typeVehicules",""),
             data.get("notes",""),
         ))
+        company_id = c.lastrowid
+
+        # 2) حفظ كل سائق (وسيارته إن رفقها) — نفس منطق register()
+        drivers_saved = 0
+        for drv in data.get("drivers", []):
+            try:
+                nin = (drv.get("nin") or "").strip()
+                if nin:
+                    exists = conn.execute(
+                        "SELECT id FROM candidates WHERE nin=?", (nin,)).fetchone()
+                    if exists:
+                        continue  # تجاوز التكرار بصمت لعدم إيقاف كل التسجيل
+                c.execute("""INSERT INTO candidates
+                    (nom_ar,prenom_ar,nom_fr,prenom_fr,
+                     date_naissance,lieu_naissance,wilaya_naissance,adresse,commune,wilaya,
+                     nationalite,nin,telephone,telephone2,
+                     num_permis,date_delivrance,date_expiration,lieu_delivrance,wilaya_delivrance,
+                     categories,notes)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
+                    drv.get("nomAr"),        drv.get("prenomAr"),
+                    drv.get("nom"),          drv.get("prenom"),
+                    drv.get("dateNaissance"),drv.get("lieuNaissance"),
+                    drv.get("wilayaNaissance"),drv.get("adresse"),
+                    drv.get("commune"),      drv.get("wilaya"),
+                    drv.get("nationalite","جزائري"), nin or None,
+                    drv.get("telephone"),    drv.get("telephone2"),
+                    drv.get("numPermis"),    drv.get("dateDelivrance"),
+                    drv.get("dateExpiration"),drv.get("lieuDelivrance"),
+                    drv.get("wilayaDelivrance"),
+                    json.dumps(drv.get("categories",[]), ensure_ascii=False),
+                    f"سائق لدى شركة: {data.get('nomSociete','')}"
+                ))
+                driver_id = c.lastrowid
+                drivers_saved += 1
+
+                # مركبة السائق إن وُجدت
+                if (drv.get("numImmatriculation") or "").strip():
+                    c.execute("""INSERT INTO vehicles
+                        (candidate_id, company_id, num_immatriculation,
+                         marque, type_vehicule, num_serie, annee_circulation)
+                        VALUES(?,?,?,?,?,?,?)""", (
+                        driver_id, company_id,
+                        drv.get("numImmatriculation",""),
+                        drv.get("marque",""), drv.get("typeVehicule",""),
+                        drv.get("numSerie",""), drv.get("anneeCirculation",""),
+                    ))
+            except Exception as ex:
+                print(f"[register-company] driver save error: {ex}")
+
+        # 3) حفظ المركبات المستقلة (بدون سائق مرتبط بالضرورة)
+        vehicles_saved = 0
+        for veh in data.get("vehicles", []):
+            try:
+                if not (veh.get("numImmatriculation") or "").strip():
+                    continue
+                c.execute("""INSERT INTO vehicles
+                    (company_id, num_immatriculation, num_precedent,
+                     marque, type_vehicule, modele, num_serie,
+                     genre, carrosserie, energie, puissance,
+                     nb_places, poids_total, charge_utile, annee_circulation,
+                     proprietaire_nom, proprietaire_prenom)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
+                    company_id,
+                    veh.get("numImmatriculation",""), veh.get("numPrecedent",""),
+                    veh.get("marque",""),  veh.get("typeVehicule",""),
+                    veh.get("modele",""),  veh.get("numSerie",""),
+                    veh.get("genre",""),   veh.get("carrosserie",""),
+                    veh.get("energie",""), veh.get("puissance",""),
+                    veh.get("nbPlaces",""),veh.get("poidsTotal",""),
+                    veh.get("chargeUtile",""), veh.get("anneeCirculation",""),
+                    veh.get("proprietaireNom",""), veh.get("proprietairePrenom",""),
+                ))
+                vehicles_saved += 1
+            except Exception as ex:
+                print(f"[register-company] vehicle save error: {ex}")
+
         conn.commit()
-        return jsonify({"success": True, "id": c.lastrowid})
+        print(f"Company registered: {data.get('nomSociete')} — "
+              f"{drivers_saved} drivers, {vehicles_saved} vehicles")
+        return jsonify({
+            "success": True, "id": company_id,
+            "drivers_saved": drivers_saved, "vehicles_saved": vehicles_saved
+        })
 
 @app.route("/api/admin/candidates")
 def get_candidates():
