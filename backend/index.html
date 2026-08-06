@@ -765,6 +765,11 @@ function CompanyForm({ onBack }) {
   const [driverPreview, setDriverPreview] = useState(null);
   const [showDriverForm, setShowDriverForm] = useState(false);
 
+  // مركبات مستقلة (بدون سائق مرتبط بالضرورة)
+  const [vehicles, setVehicles]           = useState([]);
+  const [vehicleForm, setVehicleForm]     = useState(INITIAL_VEHICLE_FORM);
+  const [showVehicleForm, setShowVehicleForm] = useState(false);
+
   const inp = {width:"100%",padding:"10px 12px",border:"1.5px solid #d1d5db",
     borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit",background:"#fff"};
   const BLUE = "#2563eb";
@@ -788,6 +793,14 @@ function CompanyForm({ onBack }) {
 
   function removeDriver(idx) { setDrivers(d => d.filter((_,i) => i !== idx)); }
 
+  function addVehicle() {
+    if (!vehicleForm.numImmatriculation.trim()) return;
+    setVehicles(v => [...v, { ...vehicleForm }]);
+    setVehicleForm(INITIAL_VEHICLE_FORM);
+    setShowVehicleForm(false);
+  }
+  function removeVehicle(idx) { setVehicles(v => v.filter((_,i) => i !== idx)); }
+
   async function handleSubmit() {
     const e = validateCompany();
     if (e.length) { setErrors(e); return; }
@@ -795,7 +808,7 @@ function CompanyForm({ onBack }) {
     try {
       const res = await fetch(`${API_BASE}/register-company`, {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ ...form, drivers })
+        body: JSON.stringify({ ...form, drivers, vehicles })
       });
       const d = await res.json();
       if (d.success) setStep(2);
@@ -809,7 +822,7 @@ function CompanyForm({ onBack }) {
       <div style={{fontSize:60,marginBottom:16}}>✅</div>
       <h3 style={{color:BLUE,fontWeight:800,fontSize:20,marginBottom:8}}>تم تسجيل الشركة بنجاح!</h3>
       <p style={{color:"#6b7280",fontSize:14,marginBottom:6}}>
-        <b>{form.nomSociete}</b> — {drivers.length} سائق مسجّل
+        <b>{form.nomSociete}</b> — {drivers.length} سائق و{vehicles.length} مركبة مسجّلة
       </p>
       <button onClick={onBack} style={{padding:"12px 32px",borderRadius:10,border:"none",background:BLUE,color:"#fff",cursor:"pointer",fontWeight:700}}>
         العودة للرئيسية
@@ -963,6 +976,81 @@ function CompanyForm({ onBack }) {
                 </button>
               </div>
             </>}
+          </div>
+        )}
+      </div>
+
+      {/* قائمة المركبات المستقلة */}
+      <div style={{background:"#eff6ff",borderRadius:12,padding:16,marginBottom:20}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <h4 style={{color:BLUE,fontWeight:700,fontSize:14,margin:0}}>🚕 مركبات الشركة ({vehicles.length})</h4>
+          <button onClick={()=>{setShowVehicleForm(true);setVehicleForm(INITIAL_VEHICLE_FORM);}}
+            style={{padding:"6px 14px",borderRadius:8,border:"none",background:BLUE,color:"#fff",cursor:"pointer",fontWeight:600,fontSize:13}}>
+            + إضافة مركبة
+          </button>
+        </div>
+
+        {vehicles.length===0 ? (
+          <p style={{color:"#9ca3af",fontSize:13,textAlign:"center",margin:"8px 0"}}>لم تُضف أي مركبة بعد</p>
+        ) : (
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {vehicles.map((v,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+                background:"#fff",borderRadius:8,padding:"10px 12px",border:"1px solid #bfdbfe"}}>
+                <div>
+                  <div style={{fontWeight:600,fontSize:14,color:BLUE}}>
+                    🚗 {v.numImmatriculation}
+                  </div>
+                  <div style={{fontSize:12,color:"#6b7280"}}>
+                    {v.marque&&`${v.marque}`}{v.modele&&` ${v.modele}`}
+                    {v.anneeCirculation&&` • ${v.anneeCirculation}`}
+                    {(v.proprietaireNom||v.proprietairePrenom)&&
+                      ` • 👤 ${v.proprietaireNom||""} ${v.proprietairePrenom||""}`}
+                  </div>
+                </div>
+                <button onClick={()=>removeVehicle(i)}
+                  style={{padding:"4px 10px",borderRadius:6,border:"1px solid #fca5a5",background:"#fef2f2",color:"#dc2626",cursor:"pointer",fontSize:12}}>
+                  حذف
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* نموذج إضافة مركبة */}
+        {showVehicleForm&&(
+          <div style={{marginTop:16,background:"#fff",borderRadius:12,padding:16,border:"2px solid #93c5fd"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <h5 style={{margin:0,color:BLUE,fontWeight:700,fontSize:14}}>🚗 إضافة مركبة جديدة</h5>
+              <button onClick={()=>setShowVehicleForm(false)}
+                style={{padding:"3px 10px",borderRadius:6,border:"1px solid #d1d5db",background:"#fff",cursor:"pointer",fontSize:12,color:"#6b7280"}}>
+                ✕
+              </button>
+            </div>
+
+            <UploadCarteGrise color={BLUE} onDone={(data)=>{
+              if(data) setVehicleForm(f=>({...f,...Object.fromEntries(Object.entries(data).filter(([,v])=>v!==""))}));
+            }}/>
+
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,margin:"12px 0"}}>
+              {[
+                ["رقم التسجيل *","numImmatriculation"],["الرقم السابق","numPrecedent"],
+                ["الماركة","marque"],["الطراز","modele"],
+                ["نوع المركبة","typeVehicule"],["رقم الهيكل","numSerie"],
+                ["سنة أول استعمال","anneeCirculation"],["عدد المقاعد","nbPlaces"],
+                ["اسم المالك","proprietaireNom"],["لقب المالك","proprietairePrenom"],
+              ].map(([label,key])=>(
+                <div key={key} style={{display:"flex",flexDirection:"column",gap:3}}>
+                  <label style={{fontSize:10,fontWeight:600,color:"#6b7280"}}>{label}</label>
+                  <input value={vehicleForm[key]||""} onChange={e=>setVehicleForm(f=>({...f,[key]:e.target.value}))}
+                    style={{...inp,fontSize:12,padding:"7px 10px"}}/>
+                </div>
+              ))}
+            </div>
+            <button onClick={addVehicle}
+              style={{width:"100%",padding:10,borderRadius:8,border:"none",background:BLUE,color:"#fff",cursor:"pointer",fontWeight:700,fontSize:13}}>
+              ✅ إضافة المركبة
+            </button>
           </div>
         )}
       </div>
