@@ -124,14 +124,26 @@ def _extract_json(result):
     s, e = text.find("{"), text.rfind("}") + 1
     if s >= 0 < e:
         text = text[s:e]
+
+    # ── تنظيف الحروف غير المرئية التي يُضيفها Gemini أحياناً ──
+    # (مسافات Unicode خاصة، BOM، أحرف تحكم) تكسر json.loads رغم
+    # أن النص "يبدو" سليماً بصرياً عند الطباعة
+    import re
+    # إزالة BOM إن وُجد
+    text = text.lstrip("\ufeff")
+    # استبدال كل المسافات Unicode الخاصة (nbsp وغيرها) بمسافة عادية
+    text = re.sub(r"[\u00a0\u2000-\u200f\u2028\u2029\ufeff]", " ", text)
+    # إزالة أحرف التحكم غير المسموح بها في JSON (عدا \n \t \r المُهرَّبة أصلاً)
+    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", text)
+
     try:
         return json.loads(text)
     except json.JSONDecodeError as ex:
         print(f"[OCR] JSON parse failed: {ex}")
-        print(f"[OCR] raw text (first 500 chars): {text[:500]!r}")
-        # محاولة إصلاح شائعة: فواصل زائدة قبل } أو ]
-        import re
-        fixed = re.sub(r',\s*([}\]])', r'\1', text)
+        print(f"[OCR] raw text around error: {text[max(0,ex.pos-40):ex.pos+40]!r}")
+        print(f"[OCR] char codes there: {[hex(ord(c)) for c in text[max(0,ex.pos-5):ex.pos+5]]}")
+        # محاولة إصلاح: فواصل زائدة قبل } أو ]
+        fixed = re.sub(r",\s*([}\]])", r"\1", text)
         try:
             result2 = json.loads(fixed)
             print("[OCR] ✅ fixed by removing trailing commas")
