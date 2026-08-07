@@ -251,10 +251,23 @@ def run_ocr(image_b64, mime, prompt):
 # ══════════════════════════════════════════════════════════════
 
 PROMPT_PERMIS = (
-    "You are an expert OCR system for Algerian driving licenses.\n"
+    "You are an expert OCR system for Algerian driving licenses (رخصة السياقة).\n"
     "RULES: Extract ONLY visible data. NEVER invent. Empty=''."
     " Dates: YYYY-MM-DD. nin=18 digits. categories=array.\n"
-    "Return ONLY JSON:\n"
+    "\n"
+    "FIELD HINTS (Algerian licenses often print birth date+place together,\n"
+    "e.g. Arabic 'المولود بتاريخ ... ب...' or French 'né(e) le ... à ...'):\n"
+    "- dateNaissance: the date right after 'né le' / 'المولود بتاريخ'\n"
+    "- lieuNaissance: the place/city right after 'à' / 'ب' following the birth date "
+    "(may be on the same line or wrap to next line — read carefully, look for a "
+    "city or commune name near the birth date, e.g. الجزائر, وهران, قسنطينة...)\n"
+    "- wilayaNaissance: the province/wilaya if shown separately from the city\n"
+    "- lieuDelivrance / wilayaDelivrance: place where the LICENSE (not birth) was issued, "
+    "usually near the issue date at the bottom\n"
+    "- numPermis: the license number, often prefixed with a letter (e.g. L00823904)\n"
+    "- categories: license category letters visible (A,A1,B,BE,C,C1,CE,D,D1,DE)\n"
+    "\n"
+    "Return ONLY this JSON, filling every field you can find:\n"
     '{"nomAr":"","prenomAr":"","nom":"","prenom":"",'
     '"dateNaissance":"","lieuNaissance":"","wilayaNaissance":"",'
     '"adresse":"","commune":"","wilaya":"",'
