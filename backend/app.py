@@ -63,6 +63,18 @@ def init_db():
             adresse TEXT, wilaya TEXT,
             nb_vehicules TEXT, type_vehicules TEXT, notes TEXT
         )""")
+        # التسجيل للترشح لنيل دفتر المقاعد لسائقي سيارات الأجرة
+        conn.execute("""CREATE TABLE IF NOT EXISTS seat_booklet_registrations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            registration_number TEXT UNIQUE,
+            created_at TEXT DEFAULT (datetime('now','localtime')),
+            nom_ar TEXT, prenom_ar TEXT, nom_fr TEXT, prenom_fr TEXT,
+            date_naissance TEXT, lieu_naissance TEXT,
+            nin TEXT,
+            num_permis TEXT, date_expiration TEXT,
+            telephone TEXT, telephone2 TEXT, adresse TEXT,
+            statut TEXT DEFAULT 'قيد الدراسة'
+        )""")
         conn.commit()
     print("DB ready:", DB_PATH)
 
@@ -480,6 +492,109 @@ def register_company():
             "success": True, "id": company_id,
             "drivers_saved": drivers_saved, "vehicles_saved": vehicles_saved
         })
+
+@app.route("/api/register-seat-booklet", methods=["POST"])
+def register_seat_booklet():
+    data = request.get_json()
+    if not data: return jsonify({"error": "no data"}), 400
+    required = ["nomAr","prenomAr","nin","telephone","adresse","numPermis"]
+    missing  = [f for f in required if not (data.get(f) or "").strip()]
+    if missing:
+        return jsonify({"error": f"حقول مطلوبة: {', '.join(missing)}"}), 400
+
+    with get_db() as conn:
+        c = conn.cursor()
+        # رقم تسجيل تسلسلي: SB-YYYY-00001
+        year = datetime.now().year
+        row = conn.execute(
+            "SELECT COUNT(*) FROM seat_booklet_registrations WHERE registration_number LIKE ?",
+            (f"SB-{year}-%",)).fetchone()
+        seq = (row[0] or 0) + 1
+        reg_number = f"SB-{year}-{seq:05d}"
+
+        c.execute("""INSERT INTO seat_booklet_registrations
+            (registration_number, nom_ar, prenom_ar, nom_fr, prenom_fr,
+             date_naissance, lieu_naissance, nin,
+             num_permis, date_expiration,
+             telephone, telephone2, adresse)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
+            reg_number,
+            data.get("nomAr",""),  data.get("prenomAr",""),
+            data.get("nom",""),    data.get("prenom",""),
+            data.get("dateNaissance",""), data.get("lieuNaissance",""),
+            data.get("nin",""),
+            data.get("numPermis",""), data.get("dateExpiration",""),
+            data.get("telephone",""), data.get("telephone2",""),
+            data.get("adresse",""),
+        ))
+        rid = c.lastrowid
+        conn.commit()
+
+    print(f"[seat-booklet] new registration: {reg_number} — {data.get('nomAr')} {data.get('prenomAr')}")
+    return jsonify({"success": True, "id": rid, "registration_number": reg_number}), 201
+
+
+@app.route("/api/print-seat-certificate/<int:rid>")
+def print_seat_certificate(rid):
+    with get_db() as conn:
+        r = conn.execute(
+            "SELECT * FROM seat_booklet_registrations WHERE id=?", (rid,)).fetchone()
+    if not r:
+        return "التسجيل غير موجود", 404
+
+    qr_data = f"{r['registration_number']}|{r['nom_ar']} {r['prenom_ar']}|{r['nin']}"
+    qr_url  = f"https://api.qrserver.com/v1/create-qr-code/?size=160x160&data={qr_data}"
+
+    html = f"""<!DOCTYPE html><html dir="rtl" lang="ar"><head>
+<meta charset="UTF-8"><title>شهادة تسجيل — {r['registration_number']}</title>
+<style>
+* {{ box-sizing:border-box; margin:0; padding:0; }}
+body {{ font-family:'Segoe UI',Tahoma,Arial,sans-serif; background:#f3f4f6; padding:20px; }}
+.cert {{ max-width:700px; margin:0 auto; background:#fff; border:3px solid #b45309;
+  border-radius:12px; padding:40px; position:relative; }}
+.header {{ text-align:center; border-bottom:2px solid #b45309; padding-bottom:16px; margin-bottom:24px; }}
+.header h1 {{ color:#b45309; font-size:20px; margin-bottom:6px; }}
+.header p {{ color:#6b7280; font-size:13px; }}
+.reg-num {{ background:#fef3c7; color:#92400e; font-weight:700; font-size:16px;
+  text-align:center; padding:8px; border-radius:8px; margin-bottom:20px; }}
+table {{ width:100%; border-collapse:collapse; margin-bottom:20px; }}
+td {{ padding:10px 8px; border-bottom:1px solid #e5e7eb; font-size:14px; }}
+td.label {{ font-weight:700; color:#374151; width:35%; }}
+.qr-box {{ text-align:center; margin-top:24px; padding-top:20px; border-top:1px dashed #d1d5db; }}
+.qr-box img {{ border:1px solid #e5e7eb; border-radius:8px; padding:8px; }}
+.footer {{ text-align:center; color:#9ca3af; font-size:11px; margin-top:20px; }}
+.btn {{ display:block; width:200px; margin:20px auto 0; padding:12px; background:#b45309;
+  color:#fff; text-align:center; border:none; border-radius:8px; font-weight:700;
+  font-size:14px; cursor:pointer; }}
+@media print {{ .btn {{ display:none; }} body {{ background:#fff; padding:0; }} .cert {{ border:1px solid #000; }} }}
+</style></head><body>
+<div class="cert">
+  <div class="header">
+    <h1>📘 شهادة التسجيل للترشح لنيل دفتر المقاعد</h1>
+    <p>لسائقي سيارات الأجرة — مركز التكوين — نقل الأشخاص</p>
+  </div>
+  <div class="reg-num">رقم التسجيل: {r['registration_number']}</div>
+  <table>
+    <tr><td class="label">الاسم واللقب</td><td>{r['nom_ar'] or ''} {r['prenom_ar'] or ''}</td></tr>
+    <tr><td class="label">تاريخ ومكان الميلاد</td><td>{r['date_naissance'] or ''} — {r['lieu_naissance'] or ''}</td></tr>
+    <tr><td class="label">رقم التعريف الوطني</td><td>{r['nin'] or ''}</td></tr>
+    <tr><td class="label">رقم رخصة السياقة</td><td>{r['num_permis'] or ''}</td></tr>
+    <tr><td class="label">تاريخ انتهاء الرخصة</td><td>{r['date_expiration'] or ''}</td></tr>
+    <tr><td class="label">الهاتف</td><td>{r['telephone'] or ''}</td></tr>
+    <tr><td class="label">العنوان</td><td>{r['adresse'] or ''}</td></tr>
+    <tr><td class="label">تاريخ التسجيل</td><td>{r['created_at'] or ''}</td></tr>
+    <tr><td class="label">الحالة</td><td>{r['statut'] or 'قيد الدراسة'}</td></tr>
+  </table>
+  <div class="qr-box">
+    <img src="{qr_url}" alt="QR"/>
+    <p style="color:#9ca3af;font-size:11px;margin-top:6px">امسح الرمز للتحقق من صحة التسجيل</p>
+  </div>
+  <div class="footer">تُطبع هذه الشهادة تلقائياً عند التسجيل — يُرجى الاحتفاظ بها لإجراء التكوين</div>
+</div>
+<button class="btn" onclick="window.print()">🖨️ طباعة الشهادة</button>
+</body></html>"""
+    return Response(html, mimetype="text/html; charset=utf-8")
+
 
 @app.route("/api/admin/candidates")
 def get_candidates():
