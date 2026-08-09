@@ -505,8 +505,8 @@ function ReviewStep({ form, setForm, preview }) {
         <Field label="تاريخ الميلاد" required>
           <input type="date" style={inp} value={form.dateNaissance} onChange={e=>upd("dateNaissance",e.target.value)}/>
         </Field>
-        <Field label="مكان الميلاد" required>
-          <input style={inp} value={form.lieuNaissance} onChange={e=>upd("lieuNaissance",e.target.value)} placeholder="وهران" dir="rtl"/>
+        <Field label="مكان الميلاد">
+          <input style={inp} value={form.lieuNaissance} onChange={e=>upd("lieuNaissance",e.target.value)} placeholder="قد لا يكون مطبوعاً على الرخصة — أدخله يدوياً إن رغبت" dir="rtl"/>
         </Field>
       </div>
 
