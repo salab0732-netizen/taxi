@@ -603,115 +603,330 @@ function ConfirmStep({ form, preview }) {
 
 // ==================== ADMIN PANEL ====================
 function AdminPanel({ onClose }) {
-  const [data,setData]=useState({total:0,candidates:[]});
-  const [stats,setStats]=useState({});
-  const [search,setSearch]=useState("");
-  const [statut,setStatut]=useState("");
-  const [selected,setSelected]=useState(null);
-  const [loading,setLoading]=useState(false);
+  const [tab, setTab]         = useState("drivers");
+  // ── بيانات السائقين ──
+  const [drivers, setDrivers]         = useState([]);
+  const [driversTotal, setDriversTotal] = useState(0);
+  const [driversSearch, setDriversSearch] = useState("");
+  const [driversLoading, setDriversLoading] = useState(false);
+  // ── بيانات الشركات ──
+  const [companies, setCompanies]         = useState([]);
+  const [companiesTotal, setCompaniesTotal] = useState(0);
+  const [companiesSearch, setCompaniesSearch] = useState("");
+  const [companiesLoading, setCompaniesLoading] = useState(false);
+  // ── بيانات دفتر المقاعد ──
+  const [booklets, setBooklets]         = useState([]);
+  const [bookletsTotal, setBookletsTotal] = useState(0);
+  const [bookletsSearch, setBookletsSearch] = useState("");
+  const [bookletsLoading, setBookletsLoading] = useState(false);
+  // ── تفاصيل مختارة ──
+  const [selected, setSelected] = useState(null);
 
-  const fetchData=async()=>{
-    setLoading(true);
-    try{
-      const [cRes,sRes]=await Promise.all([
-        fetch(`${API_BASE}/admin/candidates?q=${encodeURIComponent(search)}&statut=${statut}&limit=100`),
-        fetch(`${API_BASE}/stats`)
-      ]);
-      setData(await cRes.json());
-      setStats(await sRes.json());
-    }catch(e){console.error(e);}
-    setLoading(false);
-  };
+  const inp2 = {padding:"9px 12px",border:"1.5px solid #d1d5db",borderRadius:8,
+    fontSize:13,outline:"none",fontFamily:"inherit",background:"#fff",width:"100%"};
 
-  useEffect(()=>{fetchData();},[search,statut]);
+  async function fetchDrivers(q="") {
+    setDriversLoading(true);
+    try {
+      const r = await fetch(`${API_BASE}/admin/candidates?q=${encodeURIComponent(q)}&limit=500`);
+      const d = await r.json();
+      setDrivers(d.candidates||[]); setDriversTotal(d.total||0);
+    } catch(e) { console.error(e); }
+    setDriversLoading(false);
+  }
+  async function fetchCompanies(q="") {
+    setCompaniesLoading(true);
+    try {
+      const r = await fetch(`${API_BASE}/admin/companies?q=${encodeURIComponent(q)}`);
+      const d = await r.json();
+      setCompanies(d.companies||[]); setCompaniesTotal(d.total||0);
+    } catch(e) { console.error(e); }
+    setCompaniesLoading(false);
+  }
+  async function fetchBooklets(q="") {
+    setBookletsLoading(true);
+    try {
+      const r = await fetch(`${API_BASE}/admin/seat-booklet?q=${encodeURIComponent(q)}`);
+      const d = await r.json();
+      setBooklets(d.registrations||[]); setBookletsTotal(d.total||0);
+    } catch(e) { console.error(e); }
+    setBookletsLoading(false);
+  }
 
-  const updateStatut=async(id,newStatut)=>{
-    await fetch(`${API_BASE}/admin/candidates/${id}`,{
-      method:"PATCH",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({statut:newStatut})
+  useEffect(()=>{ fetchDrivers(); fetchCompanies(); fetchBooklets(); },[]);
+  useEffect(()=>{ fetchDrivers(driversSearch); },[driversSearch]);
+  useEffect(()=>{ fetchCompanies(companiesSearch); },[companiesSearch]);
+  useEffect(()=>{ fetchBooklets(bookletsSearch); },[bookletsSearch]);
+
+  const statutColor = s => ({"جديد":"#3b82f6","مقبول":"#22c55e","مرفوض":"#ef4444","قيد الدراسة":"#f59e0b"}[s]||"#9ca3af");
+
+  async function updateStatut(id, newStatut) {
+    await fetch(`${API_BASE}/admin/candidates/${id}`, {
+      method:"PATCH", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({statut: newStatut})
     });
-    fetchData();
-    setSelected(s=>s?{...s,statut:newStatut}:null);
-  };
+    fetchDrivers(driversSearch);
+    setSelected(s => s ? {...s, statut: newStatut} : null);
+  }
 
-  const statutColor=s=>({
-    "جديد":"#3b82f6","مقبول":"#22c55e","مرفوض":"#ef4444"
-  }[s]||"#9ca3af");
+  function thStyle(c="#1a6b3c") {
+    return {padding:"9px 10px",textAlign:"right",color:"#374151",fontWeight:700,
+      borderBottom:`2px solid ${c}44`,whiteSpace:"nowrap",fontSize:12,background:"#f9fafb"};
+  }
+  function tdStyle() {
+    return {padding:"8px 10px",fontSize:12,borderBottom:"1px solid #f3f4f6"};
+  }
 
-  return (
-    <div style={{position:"fixed",inset:0,background:"#fff",zIndex:1000,overflow:"auto",padding:20,fontFamily:"inherit"}} dir="rtl">
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      <div style={{maxWidth:960,margin:"0 auto"}}>
-
-        {/* Header */}
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
-          <h2 style={{margin:0,color:"#1a6b3c",fontSize:18}}>🗂️ لوحة إدارة التسجيلات</h2>
-          <button onClick={onClose} style={{padding:"7px 14px",borderRadius:8,border:"1px solid #d1d5db",background:"#fff",cursor:"pointer",fontSize:13}}>✕ إغلاق</button>
-        </div>
-
-        {/* Stats */}
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
-          {[
-            ["إجمالي المسجلين",stats.total,"#1a6b3c"],
-            ["تسجيلات اليوم",stats.today,"#2d9e5f"],
-            ["جديد",stats.jadid,"#3b82f6"],
-            ["مقبول",stats.maqboul,"#22c55e"],
-          ].map(([l,v,c])=>(
-            <div key={l} style={{background:"#fff",border:`1px solid ${c}22`,borderRadius:10,padding:"12px 16px",boxShadow:"0 1px 4px rgba(0,0,0,.05)"}}>
-              <div style={{fontSize:24,fontWeight:700,color:c}}>{v??"-"}</div>
-              <div style={{fontSize:12,color:"#6b7280",marginTop:2}}>{l}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Filters */}
-        <div style={{display:"flex",gap:10,marginBottom:16}}>
-          <input style={{...inp,flex:1}} placeholder="بحث بالاسم، NIN، الهاتف، رقم الرخصة..."
-            value={search} onChange={e=>setSearch(e.target.value)}/>
-          <select style={{...inp,width:140}} value={statut} onChange={e=>setStatut(e.target.value)}>
-            <option value="">كل الحالات</option>
-            <option>جديد</option><option>مقبول</option><option>مرفوض</option>
-          </select>
-          <a href={`${API_BASE}/admin/export/csv`}
-            style={{padding:"10px 16px",background:"#1a6b3c",color:"#fff",borderRadius:8,textDecoration:"none",fontWeight:600,fontSize:13,whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:6}}>
-            ⬇ CSV
+  // ── تبويب السائقين ──
+  function DriversTab() {
+    return (
+      <div>
+        <div style={{display:"flex",gap:10,marginBottom:14,alignItems:"center"}}>
+          <input style={{...inp2,flex:1}} placeholder="بحث بالاسم، NIN، هاتف، رخصة..."
+            value={driversSearch} onChange={e=>setDriversSearch(e.target.value)}/>
+          <a href={`${API_BASE}/admin/export/csv/candidates`}
+            style={{padding:"9px 16px",background:"#1a6b3c",color:"#fff",borderRadius:8,
+              textDecoration:"none",fontWeight:600,fontSize:12,whiteSpace:"nowrap"}}>
+            ⬇ Excel
           </a>
         </div>
-
-        {loading&&<div style={{textAlign:"center",padding:20,color:"#6b7280"}}>جارٍ التحميل...</div>}
-
-        {/* Detail Modal */}
-        {selected&&(
-          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-            <div style={{background:"#fff",borderRadius:16,padding:22,maxWidth:480,width:"100%",maxHeight:"85vh",overflow:"auto"}} dir="rtl">
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-                <h3 style={{margin:0,fontSize:16}}>{selected.nom_ar} {selected.prenom_ar}</h3>
-                <button onClick={()=>setSelected(null)} style={{border:"none",background:"none",fontSize:18,cursor:"pointer"}}>✕</button>
-              </div>
-              {selected.image_path&&(
-                <img src={`${API_BASE}/admin/images/${selected.image_path}`} alt=""
-                  style={{width:"100%",borderRadius:8,marginBottom:14,maxHeight:160,objectFit:"contain",border:"1px solid #e5e7eb"}}/>
-              )}
-              {/* info rows */}
-              {[
-                ["NIN",selected.nin],["اللقب (ع)",selected.nom_ar],["الاسم (ع)",selected.prenom_ar],
-                ["Nom",selected.nom_fr],["Prénom",selected.prenom_fr],
-                ["تاريخ الميلاد",selected.date_naissance],["مكان الميلاد",selected.lieu_naissance],
-                ["الولاية",selected.wilaya_naissance],["الهاتف",selected.telephone],
-                ["الهاتف 2",selected.telephone2],["العنوان",selected.adresse],
-                ["رقم الرخصة",selected.num_permis],["تاريخ الإصدار",selected.date_delivrance],
-                ["تاريخ الانتهاء",selected.date_expiration],["مكان الإصدار",selected.lieu_delivrance],
-                ["الفئات",(selected.categories||[]).join(" / ")],
-                ["تاريخ التسجيل",selected.created_at],
-              ].filter(([,v])=>v).map(([l,v])=>(
-                <div key={l} style={{display:"flex",gap:10,padding:"6px 0",borderBottom:"1px solid #f3f4f6"}}>
-                  <span style={{color:"#6b7280",fontSize:13,minWidth:120}}>{l}</span>
-                  <span style={{fontSize:13,fontWeight:500}}>{v}</span>
-                </div>
+        {driversLoading && <div style={{textAlign:"center",padding:20,color:"#9ca3af"}}>جارٍ التحميل...</div>}
+        <div style={{overflowX:"auto",borderRadius:10,border:"1px solid #e5e7eb"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+            <thead>
+              <tr>
+                {["#","اللقب والاسم (عربي)","Nom Prénom","تاريخ الميلاد","مكان الميلاد",
+                  "NIN","الهاتف","رقم الرخصة","تاريخ الإصدار","تاريخ الانتهاء",
+                  "مكان الإصدار","الفئات","الولاية","العنوان","الحالة","تاريخ التسجيل",""].map(h=>(
+                  <th key={h} style={thStyle("#1a6b3c")}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {!drivers.length ? (
+                <tr><td colSpan={17} style={{textAlign:"center",padding:30,color:"#9ca3af"}}>لا توجد نتائج</td></tr>
+              ) : drivers.map((r,i) => (
+                <tr key={r.id} onClick={()=>setSelected({...r,_type:"driver"})}
+                  style={{background:i%2?"#fafafa":"#fff",cursor:"pointer"}}
+                  onMouseEnter={e=>e.currentTarget.style.background="#f0fdf4"}
+                  onMouseLeave={e=>e.currentTarget.style.background=i%2?"#fafafa":"#fff"}>
+                  <td style={tdStyle()}>{r.id}</td>
+                  <td style={{...tdStyle(),fontWeight:600}}>{r.nom_ar} {r.prenom_ar}</td>
+                  <td style={tdStyle()}>{r.nom_fr} {r.prenom_fr}</td>
+                  <td style={tdStyle()}>{r.date_naissance}</td>
+                  <td style={tdStyle()}>{r.lieu_naissance}</td>
+                  <td style={{...tdStyle(),fontFamily:"monospace"}}>{r.nin}</td>
+                  <td style={tdStyle()}>{r.telephone}</td>
+                  <td style={{...tdStyle(),fontFamily:"monospace"}}>{r.num_permis}</td>
+                  <td style={tdStyle()}>{r.date_delivrance}</td>
+                  <td style={tdStyle()}>{r.date_expiration}</td>
+                  <td style={tdStyle()}>{r.lieu_delivrance}</td>
+                  <td style={tdStyle()}>{(r.categories||[]).join(" ")}</td>
+                  <td style={tdStyle()}>{r.wilaya}</td>
+                  <td style={tdStyle()}>{r.adresse}</td>
+                  <td style={tdStyle()}>
+                    <span style={{padding:"2px 8px",borderRadius:12,fontSize:11,fontWeight:700,
+                      background:`${statutColor(r.statut)}18`,color:statutColor(r.statut)}}>
+                      {r.statut}
+                    </span>
+                  </td>
+                  <td style={tdStyle()}>{(r.created_at||"").slice(0,10)}</td>
+                  <td style={{...tdStyle(),color:"#2d9e5f"}}>عرض ←</td>
+                </tr>
               ))}
-              {selected.notes&&<div style={{marginTop:12,padding:"10px 12px",background:"#f9fafb",borderRadius:8,fontSize:13,color:"#374151"}}><strong>ملاحظات:</strong> {selected.notes}</div>}
-              {/* تغيير الحالة */}
-              <div style={{marginTop:16,display:"flex",gap:8}}>
+            </tbody>
+          </table>
+        </div>
+        <p style={{color:"#9ca3af",fontSize:11,marginTop:8,textAlign:"center"}}>{driversTotal} سائق</p>
+      </div>
+    );
+  }
+
+  // ── تبويب الشركات ──
+  function CompaniesTab() {
+    return (
+      <div>
+        <div style={{display:"flex",gap:10,marginBottom:14,alignItems:"center"}}>
+          <input style={{...inp2,flex:1}} placeholder="بحث باسم الشركة، سجل تجاري، مسؤول..."
+            value={companiesSearch} onChange={e=>setCompaniesSearch(e.target.value)}/>
+          <a href={`${API_BASE}/admin/export/csv/companies`}
+            style={{padding:"9px 16px",background:"#2563eb",color:"#fff",borderRadius:8,
+              textDecoration:"none",fontWeight:600,fontSize:12,whiteSpace:"nowrap"}}>
+            ⬇ Excel
+          </a>
+        </div>
+        {companiesLoading && <div style={{textAlign:"center",padding:20,color:"#9ca3af"}}>جارٍ التحميل...</div>}
+        <div style={{overflowX:"auto",borderRadius:10,border:"1px solid #e5e7eb"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+            <thead>
+              <tr>
+                {["#","اسم الشركة","السجل التجاري","رقم الاعتماد","المسؤول",
+                  "الهاتف","البريد الإلكتروني","الولاية","العنوان",
+                  "عدد المركبات","نوع المركبات","تاريخ التسجيل",""].map(h=>(
+                  <th key={h} style={thStyle("#2563eb")}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {!companies.length ? (
+                <tr><td colSpan={13} style={{textAlign:"center",padding:30,color:"#9ca3af"}}>لا توجد نتائج</td></tr>
+              ) : companies.map((r,i) => (
+                <tr key={r.id} onClick={()=>setSelected({...r,_type:"company"})}
+                  style={{background:i%2?"#fafafa":"#fff",cursor:"pointer"}}
+                  onMouseEnter={e=>e.currentTarget.style.background="#eff6ff"}
+                  onMouseLeave={e=>e.currentTarget.style.background=i%2?"#fafafa":"#fff"}>
+                  <td style={tdStyle()}>{r.id}</td>
+                  <td style={{...tdStyle(),fontWeight:600}}>{r.nom_societe}</td>
+                  <td style={{...tdStyle(),fontFamily:"monospace"}}>{r.registre_commerce}</td>
+                  <td style={tdStyle()}>{r.numero_agreement}</td>
+                  <td style={tdStyle()}>{r.nom_responsable} {r.prenom_responsable}</td>
+                  <td style={tdStyle()}>{r.telephone}</td>
+                  <td style={tdStyle()}>{r.email}</td>
+                  <td style={tdStyle()}>{r.wilaya}</td>
+                  <td style={tdStyle()}>{r.adresse}</td>
+                  <td style={tdStyle()}>{r.nb_vehicules}</td>
+                  <td style={tdStyle()}>{r.type_vehicules}</td>
+                  <td style={tdStyle()}>{(r.created_at||"").slice(0,10)}</td>
+                  <td style={{...tdStyle(),color:"#2563eb"}}>عرض ←</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p style={{color:"#9ca3af",fontSize:11,marginTop:8,textAlign:"center"}}>{companiesTotal} شركة</p>
+      </div>
+    );
+  }
+
+  // ── تبويب دفتر المقاعد ──
+  function BookletsTab() {
+    return (
+      <div>
+        <div style={{display:"flex",gap:10,marginBottom:14,alignItems:"center"}}>
+          <input style={{...inp2,flex:1}} placeholder="بحث بالاسم، NIN، رقم التسجيل، هاتف..."
+            value={bookletsSearch} onChange={e=>setBookletsSearch(e.target.value)}/>
+          <a href={`${API_BASE}/admin/export/csv/seat-booklet`}
+            style={{padding:"9px 16px",background:"#b45309",color:"#fff",borderRadius:8,
+              textDecoration:"none",fontWeight:600,fontSize:12,whiteSpace:"nowrap"}}>
+            ⬇ Excel
+          </a>
+        </div>
+        {bookletsLoading && <div style={{textAlign:"center",padding:20,color:"#9ca3af"}}>جارٍ التحميل...</div>}
+        <div style={{overflowX:"auto",borderRadius:10,border:"1px solid #e5e7eb"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+            <thead>
+              <tr>
+                {["#","رقم التسجيل","اللقب والاسم (عربي)","Nom Prénom",
+                  "تاريخ الميلاد","مكان الميلاد","NIN","رقم الرخصة",
+                  "تاريخ انتهاء الرخصة","الهاتف","العنوان","الحالة","تاريخ التسجيل",""].map(h=>(
+                  <th key={h} style={thStyle("#b45309")}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {!booklets.length ? (
+                <tr><td colSpan={14} style={{textAlign:"center",padding:30,color:"#9ca3af"}}>لا توجد نتائج</td></tr>
+              ) : booklets.map((r,i) => (
+                <tr key={r.id} onClick={()=>setSelected({...r,_type:"booklet"})}
+                  style={{background:i%2?"#fafafa":"#fff",cursor:"pointer"}}
+                  onMouseEnter={e=>e.currentTarget.style.background="#fef3c7"}
+                  onMouseLeave={e=>e.currentTarget.style.background=i%2?"#fafafa":"#fff"}>
+                  <td style={tdStyle()}>{r.id}</td>
+                  <td style={{...tdStyle(),fontWeight:700,color:"#b45309",fontFamily:"monospace"}}>{r.registration_number}</td>
+                  <td style={{...tdStyle(),fontWeight:600}}>{r.nom_ar} {r.prenom_ar}</td>
+                  <td style={tdStyle()}>{r.nom_fr} {r.prenom_fr}</td>
+                  <td style={tdStyle()}>{r.date_naissance}</td>
+                  <td style={tdStyle()}>{r.lieu_naissance}</td>
+                  <td style={{...tdStyle(),fontFamily:"monospace"}}>{r.nin}</td>
+                  <td style={{...tdStyle(),fontFamily:"monospace"}}>{r.num_permis}</td>
+                  <td style={tdStyle()}>{r.date_expiration}</td>
+                  <td style={tdStyle()}>{r.telephone}</td>
+                  <td style={tdStyle()}>{r.adresse}</td>
+                  <td style={tdStyle()}>
+                    <span style={{padding:"2px 8px",borderRadius:12,fontSize:11,fontWeight:700,
+                      background:`${statutColor(r.statut)}18`,color:statutColor(r.statut)}}>
+                      {r.statut}
+                    </span>
+                  </td>
+                  <td style={tdStyle()}>{(r.created_at||"").slice(0,10)}</td>
+                  <td style={{...tdStyle(),color:"#b45309"}}>
+                    <a href={`${API_BASE}/print-seat-certificate/${r.id}`} target="_blank"
+                      onClick={e=>e.stopPropagation()}
+                      style={{color:"#b45309",textDecoration:"none",fontWeight:600}}>
+                      🖨️ طباعة
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p style={{color:"#9ca3af",fontSize:11,marginTop:8,textAlign:"center"}}>{bookletsTotal} مسجّل</p>
+      </div>
+    );
+  }
+
+  // ── نافذة التفاصيل ──
+  function DetailModal() {
+    if (!selected) return null;
+    const isDriver  = selected._type === "driver";
+    const isCompany = selected._type === "company";
+    const isBooklet = selected._type === "booklet";
+    const color = isDriver?"#1a6b3c":isCompany?"#2563eb":"#b45309";
+    const title = isDriver ? `${selected.nom_ar||""} ${selected.prenom_ar||""}` :
+                  isCompany ? selected.nom_societe :
+                  `${selected.nom_ar||""} ${selected.prenom_ar||""} — ${selected.registration_number||""}`;
+
+    const fields = isDriver ? [
+      ["اللقب (عربي)",selected.nom_ar],["الاسم (عربي)",selected.prenom_ar],
+      ["Nom",selected.nom_fr],["Prénom",selected.prenom_fr],
+      ["تاريخ الميلاد",selected.date_naissance],["مكان الميلاد",selected.lieu_naissance],
+      ["الولاية",selected.wilaya_naissance],["NIN",selected.nin],
+      ["الهاتف",selected.telephone],["هاتف 2",selected.telephone2],
+      ["العنوان",selected.adresse],["البلدية",selected.commune],
+      ["رقم الرخصة",selected.num_permis],["تاريخ الإصدار",selected.date_delivrance],
+      ["تاريخ الانتهاء",selected.date_expiration],["مكان الإصدار",selected.lieu_delivrance],
+      ["الفئات",(selected.categories||[]).join(" / ")],
+      ["الحالة",selected.statut],["تاريخ التسجيل",selected.created_at],
+    ] : isCompany ? [
+      ["اسم الشركة",selected.nom_societe],["السجل التجاري",selected.registre_commerce],
+      ["رقم الاعتماد",selected.numero_agreement],
+      ["المسؤول",`${selected.nom_responsable||""} ${selected.prenom_responsable||""}`],
+      ["الهاتف",selected.telephone],["هاتف 2",selected.telephone2],
+      ["البريد الإلكتروني",selected.email],["الولاية",selected.wilaya],["العنوان",selected.adresse],
+      ["عدد المركبات",selected.nb_vehicules],["نوع المركبات",selected.type_vehicules],
+      ["تاريخ التسجيل",selected.created_at],
+    ] : [
+      ["رقم التسجيل",selected.registration_number],
+      ["اللقب (عربي)",selected.nom_ar],["الاسم (عربي)",selected.prenom_ar],
+      ["Nom",selected.nom_fr],["Prénom",selected.prenom_fr],
+      ["تاريخ الميلاد",selected.date_naissance],["مكان الميلاد",selected.lieu_naissance],
+      ["NIN",selected.nin],["رقم الرخصة",selected.num_permis],
+      ["تاريخ انتهاء الرخصة",selected.date_expiration],
+      ["الهاتف",selected.telephone],["هاتف 2",selected.telephone2],
+      ["العنوان",selected.adresse],["الحالة",selected.statut],
+      ["تاريخ التسجيل",selected.created_at],
+    ];
+
+    return (
+      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:2000,
+        display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+        <div style={{background:"#fff",borderRadius:16,padding:22,maxWidth:500,width:"100%",
+          maxHeight:"85vh",overflow:"auto"}} dir="rtl">
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <h3 style={{margin:0,fontSize:15,color:color}}>{title}</h3>
+            <button onClick={()=>setSelected(null)} style={{border:"none",background:"none",fontSize:18,cursor:"pointer"}}>✕</button>
+          </div>
+          {fields.filter(([,v])=>v).map(([l,v])=>(
+            <div key={l} style={{display:"flex",gap:10,padding:"6px 0",borderBottom:"1px solid #f3f4f6"}}>
+              <span style={{color:"#6b7280",fontSize:13,minWidth:130,flexShrink:0}}>{l}</span>
+              <span style={{fontSize:13,fontWeight:500}}>{v}</span>
+            </div>
+          ))}
+          {isDriver&&(
+            <div style={{marginTop:16}}>
+              <p style={{fontSize:12,color:"#6b7280",marginBottom:8}}>تغيير الحالة:</p>
+              <div style={{display:"flex",gap:8}}>
                 {["جديد","مقبول","مرفوض"].map(s=>(
                   <button key={s} onClick={()=>updateStatut(selected.id,s)} style={{
                     flex:1,padding:"8px 0",borderRadius:8,border:`2px solid ${statutColor(s)}`,
@@ -722,48 +937,63 @@ function AdminPanel({ onClose }) {
                 ))}
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Table */}
-        <div style={{overflowX:"auto",borderRadius:12,border:"1px solid #e5e7eb"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-            <thead>
-              <tr style={{background:"#f0fdf4"}}>
-                {["#","الاسم الكامل","NIN","الهاتف","رقم الرخصة","الفئات","الحالة","التسجيل",""].map(h=>(
-                  <th key={h} style={{padding:"10px 12px",textAlign:"right",color:"#374151",fontWeight:600,borderBottom:"2px solid #d1fae5",whiteSpace:"nowrap"}}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {!data.candidates?.length?(
-                <tr><td colSpan={9} style={{textAlign:"center",padding:40,color:"#9ca3af"}}>لا توجد نتائج</td></tr>
-              ):data.candidates.map((r,i)=>(
-                <tr key={r.id} onClick={()=>setSelected(r)}
-                  style={{background:i%2===0?"#fff":"#fafafa",cursor:"pointer",transition:"background .15s"}}
-                  onMouseEnter={e=>e.currentTarget.style.background="#f0fdf4"}
-                  onMouseLeave={e=>e.currentTarget.style.background=i%2===0?"#fff":"#fafafa"}>
-                  <td style={{padding:"9px 12px",color:"#9ca3af"}}>{r.id}</td>
-                  <td style={{padding:"9px 12px",fontWeight:600}}>{r.nom_ar} {r.prenom_ar}</td>
-                  <td style={{padding:"9px 12px",fontFamily:"monospace",fontSize:12}}>{r.nin}</td>
-                  <td style={{padding:"9px 12px"}}>{r.telephone}</td>
-                  <td style={{padding:"9px 12px",fontFamily:"monospace"}}>{r.num_permis}</td>
-                  <td style={{padding:"9px 12px"}}>{(r.categories||[]).join(" ")}</td>
-                  <td style={{padding:"9px 12px"}}>
-                    <span style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,background:`${statutColor(r.statut)}18`,color:statutColor(r.statut)}}>
-                      {r.statut}
-                    </span>
-                  </td>
-                  <td style={{padding:"9px 12px",color:"#6b7280",fontSize:12}}>{r.created_at?.slice(0,10)}</td>
-                  <td style={{padding:"9px 12px",color:"#2d9e5f",fontSize:12}}>عرض ←</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          )}
+          {isBooklet&&(
+            <a href={`${API_BASE}/print-seat-certificate/${selected.id}`} target="_blank"
+              style={{display:"block",marginTop:16,padding:12,borderRadius:10,border:"none",
+                background:"#b45309",color:"#fff",textAlign:"center",fontWeight:700,
+                fontSize:14,textDecoration:"none"}}>
+              🖨️ طباعة شهادة التسجيل (مع QR)
+            </a>
+          )}
         </div>
-        <p style={{color:"#9ca3af",fontSize:12,marginTop:10,textAlign:"center"}}>
-          {data.total} مترشح إجمالاً
-        </p>
+      </div>
+    );
+  }
+
+  const TABS = [
+    {id:"drivers",  label:"🚕 سائقو سيارات الأجرة", count:driversTotal,   color:"#1a6b3c"},
+    {id:"companies",label:"🏢 شركات سيارات الأجرة",  count:companiesTotal, color:"#2563eb"},
+    {id:"booklets", label:"📘 دفتر المقاعد",          count:bookletsTotal,  color:"#b45309"},
+  ];
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"#f9fafb",zIndex:1000,overflow:"auto",padding:20,fontFamily:"inherit"}} dir="rtl">
+      <div style={{maxWidth:1100,margin:"0 auto"}}>
+
+        {/* Header */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+          <h2 style={{margin:0,color:"#1a6b3c",fontSize:18}}>🗂️ لوحة إدارة التسجيلات</h2>
+          <button onClick={onClose} style={{padding:"7px 14px",borderRadius:8,border:"1px solid #d1d5db",background:"#fff",cursor:"pointer",fontSize:13}}>✕ إغلاق</button>
+        </div>
+
+        {/* Tabs */}
+        <div style={{display:"flex",gap:8,marginBottom:20,borderBottom:"2px solid #e5e7eb",paddingBottom:0}}>
+          {TABS.map(t=>(
+            <button key={t.id} onClick={()=>setTab(t.id)} style={{
+              padding:"10px 18px",borderRadius:"8px 8px 0 0",border:"none",
+              background:tab===t.id?t.color:"#fff",
+              color:tab===t.id?"#fff":"#374151",
+              cursor:"pointer",fontWeight:700,fontSize:13,
+              borderBottom:tab===t.id?`2px solid ${t.color}`:"2px solid transparent",
+              marginBottom:-2
+            }}>
+              {t.label}
+              <span style={{marginRight:6,background:tab===t.id?"rgba(255,255,255,.3)":t.color+"18",
+                color:tab===t.id?"#fff":t.color,padding:"1px 7px",borderRadius:10,fontSize:11,fontWeight:700}}>
+                {t.count}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        {tab==="drivers"   && <DriversTab/>}
+        {tab==="companies" && <CompaniesTab/>}
+        {tab==="booklets"  && <BookletsTab/>}
+
+        {/* Detail Modal */}
+        <DetailModal/>
       </div>
     </div>
   );
