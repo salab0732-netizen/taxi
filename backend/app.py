@@ -268,6 +268,17 @@ PROMPT_PERMIS = (
     "- numPermis: the license number, often prefixed with a letter (e.g. L00823904)\n"
     "- categories: license category letters visible (A,A1,B,BE,C,C1,CE,D,D1,DE)\n"
     "\n"
+    "ARABIC NAME — READ VERY CAREFULLY, both parts are usually printed near "
+    "the top, right next to their own explicit Arabic labels (do not skip either one):\n"
+    "- nomAr: the Arabic text printed right after the label 'اللقب' (surname/family name). "
+    "This is the Arabic equivalent of the French 'Nom' field — if French Nom shows a "
+    "value, the Arabic 'اللقب' line MUST also have a value; look again if you initially "
+    "found nothing there, it is almost always present.\n"
+    "- prenomAr: the Arabic text printed right after the label 'الاسم' (given name). "
+    "This is the Arabic equivalent of the French 'Prénom' field.\n"
+    "Both nomAr and prenomAr are DIFFERENT lines/labels on the card — never merge "
+    "them into one field or leave one empty just because the other was found.\n"
+    "\n"
     "Return ONLY this JSON, filling every field you can find:\n"
     '{"nomAr":"","prenomAr":"","nom":"","prenom":"",'
     '"dateNaissance":"","lieuNaissance":"","wilayaNaissance":"",'
