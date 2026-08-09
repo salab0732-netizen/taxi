@@ -671,6 +671,96 @@ def stats():
         maqboul = conn.execute("SELECT COUNT(*) FROM candidates WHERE statut='مقبول'").fetchone()[0]
     return jsonify({"total":total,"today":today,"jadid":jadid,"maqboul":maqboul})
 
+@app.route("/api/admin/companies")
+def get_companies():
+    s = request.args.get("q","").strip()
+    where, params = [], []
+    if s:
+        where.append("(nom_societe LIKE ? OR registre_commerce LIKE ? OR nom_responsable LIKE ? OR telephone LIKE ?)")
+        params += [f"%{s}%"]*4
+    w = ("WHERE "+" AND ".join(where)) if where else ""
+    with get_db() as conn:
+        total = conn.execute(f"SELECT COUNT(*) FROM companies {w}", params).fetchone()[0]
+        rows  = conn.execute(
+            f"SELECT * FROM companies {w} ORDER BY created_at DESC LIMIT 200", params).fetchall()
+    return jsonify({"total": total, "companies": [dict(r) for r in rows]})
+
+
+@app.route("/api/admin/seat-booklet")
+def get_seat_booklet():
+    s = request.args.get("q","").strip()
+    where, params = [], []
+    if s:
+        where.append("(nom_ar LIKE ? OR prenom_ar LIKE ? OR nin LIKE ? OR telephone LIKE ? OR registration_number LIKE ?)")
+        params += [f"%{s}%"]*5
+    w = ("WHERE "+" AND ".join(where)) if where else ""
+    with get_db() as conn:
+        total = conn.execute(f"SELECT COUNT(*) FROM seat_booklet_registrations {w}", params).fetchone()[0]
+        rows  = conn.execute(
+            f"SELECT * FROM seat_booklet_registrations {w} ORDER BY created_at DESC LIMIT 200", params).fetchall()
+    return jsonify({"total": total, "registrations": [dict(r) for r in rows]})
+
+
+def _csv_response(headers, rows, filename):
+    import csv, io
+    out = io.StringIO()
+    w = csv.writer(out)
+    w.writerow(headers)
+    for row in rows:
+        w.writerow(row)
+    return Response("\ufeff"+out.getvalue(), mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename={filename}"})
+
+
+@app.route("/api/admin/export/csv/candidates")
+def export_csv_candidates():
+    with get_db() as conn:
+        rows = conn.execute("""SELECT id,created_at,nom_ar,prenom_ar,nom_fr,prenom_fr,
+            date_naissance,lieu_naissance,wilaya_naissance,adresse,commune,wilaya,
+            nationalite,nin,telephone,telephone2,
+            num_permis,date_delivrance,date_expiration,lieu_delivrance,wilaya_delivrance,
+            categories,statut,notes
+            FROM candidates ORDER BY created_at DESC""").fetchall()
+    headers = ["ID","تاريخ التسجيل","اللقب عربي","الاسم عربي","Nom","Prenom",
+        "تاريخ الميلاد","مكان الميلاد","ولاية الميلاد","العنوان","البلدية","الولاية",
+        "الجنسية","NIN","الهاتف","الهاتف2",
+        "رقم الرخصة","تاريخ الإصدار","تاريخ الانتهاء","مكان الإصدار","ولاية الإصدار",
+        "الفئات","الحالة","ملاحظات"]
+    out_rows = []
+    for r in rows:
+        row = list(r)
+        try: row[21] = " / ".join(json.loads(row[21] or "[]"))
+        except: pass
+        out_rows.append(row)
+    return _csv_response(headers, out_rows, "سائقون.csv")
+
+
+@app.route("/api/admin/export/csv/companies")
+def export_csv_companies():
+    with get_db() as conn:
+        rows = conn.execute("""SELECT id,created_at,nom_societe,registre_commerce,
+            numero_agreement,nom_responsable,prenom_responsable,telephone,telephone2,
+            email,adresse,wilaya,nb_vehicules,type_vehicules,notes
+            FROM companies ORDER BY created_at DESC""").fetchall()
+    headers = ["ID","تاريخ التسجيل","اسم الشركة","السجل التجاري","رقم الاعتماد",
+        "اسم المسؤول","لقب المسؤول","الهاتف","الهاتف2","البريد الإلكتروني",
+        "العنوان","الولاية","عدد المركبات","نوع المركبات","ملاحظات"]
+    return _csv_response(headers, [list(r) for r in rows], "شركات.csv")
+
+
+@app.route("/api/admin/export/csv/seat-booklet")
+def export_csv_seat_booklet():
+    with get_db() as conn:
+        rows = conn.execute("""SELECT id,registration_number,created_at,
+            nom_ar,prenom_ar,nom_fr,prenom_fr,date_naissance,lieu_naissance,nin,
+            num_permis,date_expiration,telephone,telephone2,adresse,statut
+            FROM seat_booklet_registrations ORDER BY created_at DESC""").fetchall()
+    headers = ["ID","رقم التسجيل","تاريخ التسجيل","اللقب عربي","الاسم عربي",
+        "Nom","Prenom","تاريخ الميلاد","مكان الميلاد","NIN",
+        "رقم الرخصة","تاريخ انتهاء الرخصة","الهاتف","الهاتف2","العنوان","الحالة"]
+    return _csv_response(headers, [list(r) for r in rows], "دفتر_المقاعد.csv")
+
+
 @app.route("/api/admin/export/csv")
 def export_csv():
     import csv, io
