@@ -195,6 +195,7 @@ def run_ocr(image_b64, mime, prompt):
                 result = _gemini_request(model, ver, payload, api_key)
                 data   = _extract_json(result)
                 print(f"[OCR] ✅ {model} (attempt {attempt+1})")
+                print(f"[OCR] full extracted data: {json.dumps(data, ensure_ascii=False)}")
                 return data, model
             except urllib.error.HTTPError as ex:
                 body = ex.read().decode("utf-8")
