@@ -75,6 +75,23 @@ def init_db():
             telephone TEXT, telephone2 TEXT, adresse TEXT,
             statut TEXT DEFAULT 'قيد الدراسة'
         )""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS heritage_licenses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT DEFAULT (datetime('now','localtime')),
+            -- بيانات بطاقة التعريف الوطنية
+            nom_ar TEXT, prenom_ar TEXT, nom_fr TEXT, prenom_fr TEXT,
+            date_naissance TEXT, lieu_naissance TEXT, wilaya_naissance TEXT,
+            adresse TEXT, commune TEXT, wilaya TEXT,
+            nin TEXT,
+            -- بيانات رخصة الاستغلال
+            num_decision TEXT,
+            date_decision TEXT,
+            commune_rattachement TEXT,
+            num_porte TEXT,
+            -- صورة البطاقة
+            image_id_path TEXT,
+            statut TEXT DEFAULT 'جديد'
+        )""")
         conn.commit()
     print("DB ready:", DB_PATH)
 
@@ -289,6 +306,29 @@ PROMPT_PERMIS = (
     '"categories":[]}'
 )
 
+PROMPT_ID_CARD = (
+    "You are an expert OCR system for Algerian National ID cards (بطاقة التعريف الوطنية / CNI).\n"
+    "RULES: Extract ONLY visible data. NEVER invent. Empty=''. Dates: YYYY-MM-DD. nin=18 digits.\n"
+    "\n"
+    "FIELD HINTS:\n"
+    "- nomAr: Arabic text after label 'اللقب' (family/surname)\n"
+    "- prenomAr: Arabic text after label 'الاسم' (given name)\n"
+    "- nom: French UPPERCASE surname\n"
+    "- prenom: French given name\n"
+    "- dateNaissance: birth date YYYY-MM-DD\n"
+    "- lieuNaissance: birth city/commune\n"
+    "- wilayaNaissance: birth wilaya/province\n"
+    "- adresse: home address\n"
+    "- commune: commune of residence\n"
+    "- wilaya: wilaya of residence\n"
+    "- nin: National ID number, exactly 18 digits\n"
+    "\n"
+    "Return ONLY this JSON:\n"
+    '{"nomAr":"","prenomAr":"","nom":"","prenom":"",'
+    '"dateNaissance":"","lieuNaissance":"","wilayaNaissance":"",'
+    '"adresse":"","commune":"","wilaya":"","nin":""}'
+)
+
 PROMPT_CARTE_GRISE = (
     "You are an expert OCR system for Algerian vehicle registration cards (Carte Grise).\n"
     "RULES: Extract ONLY visible data. NEVER invent. Empty=''."
@@ -308,6 +348,77 @@ PROMPT_CARTE_GRISE = (
     '"proprietaireCommune":"","proprietaireWilaya":"",'
     '"profession":""}'
 )
+
+@app.route("/api/ocr-id-card", methods=["POST"])
+def ocr_id_card():
+    d = request.get_json()
+    if not d or not d.get("image_base64"):
+        return jsonify({"error": "no image"}), 400
+    try:
+        data, src = run_ocr(d["image_base64"],
+                            d.get("mime_type","image/jpeg"),
+                            PROMPT_ID_CARD)
+        return jsonify({"success": True, "data": data, "source": src})
+    except Exception as ex:
+        return jsonify({"error": str(ex)}), 500
+
+
+@app.route("/api/register-heritage-license", methods=["POST"])
+def register_heritage_license():
+    data = request.get_json()
+    if not data: return jsonify({"error": "no data"}), 400
+    required = ["nomAr","prenomAr","nin","numDecision","dateDecision","communeRattachement","numPorte"]
+    missing = [f for f in required if not (data.get(f) or "").strip()]
+    if missing:
+        return jsonify({"error": f"حقول مطلوبة: {', '.join(missing)}"}), 400
+    with get_db() as conn:
+        c = conn.cursor()
+        c.execute("""INSERT INTO heritage_licenses
+            (nom_ar,prenom_ar,nom_fr,prenom_fr,
+             date_naissance,lieu_naissance,wilaya_naissance,
+             adresse,commune,wilaya,nin,
+             num_decision,date_decision,commune_rattachement,num_porte)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
+            data.get("nomAr",""),     data.get("prenomAr",""),
+            data.get("nom",""),       data.get("prenom",""),
+            data.get("dateNaissance",""), data.get("lieuNaissance",""),
+            data.get("wilayaNaissance",""),data.get("adresse",""),
+            data.get("commune",""),   data.get("wilaya",""),
+            data.get("nin",""),
+            data.get("numDecision",""),data.get("dateDecision",""),
+            data.get("communeRattachement",""),data.get("numPorte",""),
+        ))
+        conn.commit()
+        print(f"[heritage] new: {data.get('nomAr')} — {data.get('numDecision')}")
+        return jsonify({"success": True, "id": c.lastrowid}), 201
+
+
+@app.route("/api/admin/heritage-licenses")
+def get_heritage_licenses():
+    s = request.args.get("q","").strip()
+    where, params = [], []
+    if s:
+        where.append("(nom_ar LIKE ? OR prenom_ar LIKE ? OR nin LIKE ? OR num_decision LIKE ? OR commune_rattachement LIKE ?)")
+        params += [f"%{s}%"]*5
+    w = ("WHERE "+" AND ".join(where)) if where else ""
+    with get_db() as conn:
+        total = conn.execute(f"SELECT COUNT(*) FROM heritage_licenses {w}", params).fetchone()[0]
+        rows  = conn.execute(f"SELECT * FROM heritage_licenses {w} ORDER BY created_at DESC LIMIT 500", params).fetchall()
+    return jsonify({"total": total, "licenses": [dict(r) for r in rows]})
+
+
+@app.route("/api/admin/export/csv/heritage-licenses")
+def export_csv_heritage():
+    with get_db() as conn:
+        rows = conn.execute("""SELECT id,created_at,nom_ar,prenom_ar,nom_fr,prenom_fr,
+            date_naissance,lieu_naissance,wilaya_naissance,adresse,commune,wilaya,nin,
+            num_decision,date_decision,commune_rattachement,num_porte,statut
+            FROM heritage_licenses ORDER BY created_at DESC""").fetchall()
+    headers = ["ID","تاريخ التسجيل","اللقب عربي","الاسم عربي","Nom","Prenom",
+        "تاريخ الميلاد","مكان الميلاد","ولاية الميلاد","العنوان","البلدية","الولاية","NIN",
+        "رقم القرار","تاريخ القرار","بلدية الالحاق","رقم الباب","الحالة"]
+    return _csv_response(headers, [list(r) for r in rows], "رخص_ذوي_الحقوق.csv")
+
 
 @app.route("/api/ocr", methods=["POST"])
 def ocr():
