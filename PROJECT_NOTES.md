@@ -1,82 +1,94 @@
-# مشروع تسجيل سائقي سيارات الأجرة — ملخص الجلسة
-
-**المستودع:** `salab0732-netizen/taxi`
-**التاريخ:** 06 أغسطس 2026
-**الحالة النهائية:** ✅ OCR رخصة السياقة يعمل بدقة ممتازة
-
----
-
-## 🎯 الميزات المُنجزة
-
-### 1. صفحة اختيار رئيسية
-- 🚕 **سائق سيارة الأجرة** — تسجيل فردي
-- 🏢 **شركة سيارات الأجرة** — تسجيل الشركة + إضافة عدة سائقين
-
-### 2. رفع الوثائق (خطوة موحدة)
-كل صورة تُعالَج **بشكل مستقل وفوري**:
-- 🪪 رخصة السياقة → OCR فوري → نتائج تظهر مباشرة
-- 🚗 البطاقة الرمادية → OCR مستقل → نتائج منفصلة
-
-### 3. استخراج بيانات شامل
-
-**رخصة السياقة:**
-اللقب/الاسم (عربي + فرنسي)، تاريخ ومكان الميلاد، الولاية، العنوان،
-البلدية، رقم التعريف الوطني (NIN)، رقم الرخصة، تاريخ الإصدار/الانتهاء،
-مكان وولاية الإصدار، فئات الرخصة
-
-**البطاقة الرمادية:**
-رقم التسجيل، الرقم السابق، الماركة، النوع، الطراز، رقم الهيكل،
-Genre/Carrosserie، الطاقة، القوة، عدد المقاعد، الحمولة، سنة أول استعمال،
-تاريخ/مكان الإصدار، رقم ومبلغ الوصل + بيانات المالك الكاملة
-
-### 4. قاعدة بيانات (3 جداول)
-| الجدول | المحتوى |
-|---|---|
-| `candidates` | السائقون + رخصة السياقة (19 حقل) |
-| `vehicles` | المركبات + البطاقة الرمادية (28 حقل) |
-| `companies` | الشركات |
+# مشروع تسجيل سائقي سيارات الأجرة — PROJECT NOTES
+**المستودع:** `salab0732-netizen/taxi`  
+**آخر تحديث:** 09 أغسطس 2026  
+**الحالة:** ✅ يعمل بشكل كامل
 
 ---
 
-## 🐛 المشاكل التي تم حلها (بالترتيب الزمني)
+## 🔑 قواعد أساسية قبل أي تعديل
 
-| # | المشكلة | الحل |
-|---|---|---|
-| 1 | `OCR error: Unterminated string` | رفع `maxOutputTokens` |
-| 2 | Gemini يخترع بيانات وهمية (placeholder) | تعليمة صريحة "NEVER invent values" |
-| 3 | `Gemini 503` (مشغول) | نظام fallback بين عدة موديلات |
-| 4 | `UnboundLocalError: url` | حذف سطر مكرر |
-| 5 | Babel inline: `require is not defined` | حذف `import` واستبدالها بـ `const {} = React` |
-| 6 | `export default` غير مدعوم في Babel inline | تحويلها لـ `function App()` عادية |
-| 7 | صفحات فارغة/مقطوعة عند التعديل اليدوي للملف | إعادة بناء `index.html` كاملاً من `App.jsx` |
-| 8 | **404 على react.js/babel.js رغم وجودها** | **Flask ينشئ `static_folder` افتراضي يتعارض مع route مخصص** → `Flask(__name__, static_folder=None)` |
-| 9 | `load_api_key()` لا يجد `gemini_key.txt` | البحث في `Path(__file__).resolve().parent` بدقة |
-| 10 | مفتاح Gemini بصيغة `AQ.Ab8...` (جديدة) مرفوض | دعم `x-goog-api-key` header بدل `?key=` في URL لهذه الصيغة |
-| 11 | `JSON parse failed` رغم أن النص "يبدو" سليماً | **الحل الجذري:** `responseMimeType: "application/json"` في generationConfig — يُجبر Gemini على إرجاع JSON صالح 100% من خادمه مباشرة |
+1. **قاعدة البيانات** تُنشأ تلقائياً عند أول تشغيل — احذف `registrations.db` عند تغيير هيكل الجداول
+2. **Flask static** — يجب دائماً استخدام `Flask(__name__, static_folder=None)` وإلا يتعارض مع route `/static/` المخصص ويسبب 404
+3. **Gemini JSON** — يجب دائماً تفعيل `"responseMimeType": "application/json"` في generationConfig لضمان JSON صالح
+4. **مفتاح Gemini** — يُقرأ من `APP_DIR/gemini_key.txt` (APP_DIR = `Path(__file__).resolve().parent`)
+5. **Babel inline** — لا `import {}` ولا `export default` — استخدم `const {} = React` و`function App()`
+6. **لوحة الإدارة** — عند الضغط على "الإدارة" تظهر لوحة بثلاث تبويبات (سائقون/شركات/دفتر المقاعد)
 
 ---
 
-## 🔑 الدرس التقني الأهم
+## 🏗️ بنية المشروع
 
-بدل محاولة "تنظيف" نص JSON القادم من نموذج ذكاء اصطناعي (إزالة backticks،
-حروف Unicode خفية، فواصل زائدة...)، الحل الأمثل هو **طلب وضع JSON الصارم
-من الـ API نفسه**:
-
-```python
-"generationConfig": {
-    "temperature": 0,
-    "maxOutputTokens": 4096,
-    "responseMimeType": "application/json"
-}
+```
+backend/
+├── app.py          ← خادم Flask الرئيسي (كل الـ API)
+├── index.html      ← React app كامل (Babel inline)
+├── gemini_key.txt  ← مفتاح Gemini (لا يُرفع لـ GitHub)
+├── registrations.db← قاعدة البيانات SQLite
+├── react.js / react-dom.js / babel.js ← مكتبات frontend
+└── images/         ← صور رخص المسجلين
 ```
 
-هذا يضمن استجابة صالحة دائماً، بغض النظر عن نوع البيانات أو اللغة المُدخلة.
+---
+
+## 📊 قاعدة البيانات — 4 جداول
+
+| الجدول | المحتوى |
+|---|---|
+| `candidates` | سائقو سيارات الأجرة + بيانات رخصة السياقة |
+| `vehicles` | المركبات (مرتبطة بسائق أو شركة) |
+| `companies` | شركات سيارات الأجرة |
+| `seat_booklet_registrations` | المترشحون لنيل دفتر المقاعد |
 
 ---
 
-## 📌 آخر Commit
-`c20c495` — تفعيل `responseMimeType=application/json`
+## 🌐 API Endpoints
 
-## ⚠️ ملاحظات أمنية معلّقة
-- توكن GitHub استُخدم مباشرة في المحادثة — يُنصح بإلغائه بعد استقرار المشروع
-- مفتاح Gemini API محفوظ محلياً في `gemini_key.txt` (غير مرفوع لـ GitHub — صحيح)
+| Endpoint | الوصف |
+|---|---|
+| `POST /api/ocr` | OCR رخصة السياقة |
+| `POST /api/ocr-carte-grise` | OCR البطاقة الرمادية |
+| `POST /api/register` | تسجيل سائق |
+| `POST /api/register-company` | تسجيل شركة |
+| `POST /api/register-seat-booklet` | تسجيل مترشح دفتر المقاعد |
+| `GET /api/print-seat-certificate/<id>` | طباعة شهادة تسجيل مع QR |
+| `GET /api/admin/candidates` | قائمة السائقين |
+| `GET /api/admin/companies` | قائمة الشركات |
+| `GET /api/admin/seat-booklet` | قائمة مترشحي دفتر المقاعد |
+| `PATCH /api/admin/candidates/<id>` | تحديث حالة سائق |
+| `GET /api/admin/export/csv/candidates` | تصدير السائقين Excel |
+| `GET /api/admin/export/csv/companies` | تصدير الشركات Excel |
+| `GET /api/admin/export/csv/seat-booklet` | تصدير دفتر المقاعد Excel |
+| `GET /api/stats` | إحصائيات |
+| `GET /api/admin/print/security` | قائمة أمنية قابلة للطباعة |
+
+---
+
+## 📱 صفحات التطبيق (Routing)
+
+| page state | المكوّن | الوصف |
+|---|---|---|
+| `"landing"` | `LandingPage` | الصفحة الرئيسية (3 خيارات) |
+| `"driver"` | تدفق 3 خطوات | رفع رخصة+بطاقة رمادية → مراجعة → تأكيد |
+| `"company"` | `CompanyForm` | تسجيل شركة + سائقين + مركبات |
+| `"booklet"` | `SeatBookletForm` | تسجيل دفتر المقاعد + طباعة شهادة QR |
+
+---
+
+## 🐛 أبرز الإصلاحات الموثقة
+
+| المشكلة | الحل |
+|---|---|
+| 404 على react.js/babel.js | `Flask(__name__, static_folder=None)` |
+| Gemini يُرجع JSON مكسور | `responseMimeType: application/json` |
+| مفتاح AQ.Ab8... مرفوض | `x-goog-api-key` header بدل `?key=` |
+| شاشة بيضاء عند + إضافة مركبة | مكون `UploadCarteGrise` كان محذوفاً — أُعيد تعريفه |
+| اللقب العربي يُفقد | تحسين prompt بتعليمات صريحة للبحث عن علامة 'اللقب' |
+| مكان الميلاد فارغ | طبيعي في الرخص البيومترية الحديثة — لا يُطبع عليها |
+
+---
+
+## ⚠️ ملاحظات أمنية
+
+- توكن GitHub (`ghp_OeUUTW83...`) — يُنصح بإلغائه وإنشاء آخر بعد استقرار المشروع
+- مفتاح Gemini محلي في `gemini_key.txt` (مستثنى من Git — صحيح)
+- مفتاح Gemini بصيغة `AQ.Ab8...` (OAuth2 جديدة) وليس `AIzaSy...` القديمة
