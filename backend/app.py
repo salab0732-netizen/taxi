@@ -940,14 +940,20 @@ def index():
 
 @app.route("/static/<path:filename>")
 def static_files(filename):
-    # يقدم ملفات static من نفس مجلد backend
-    f = APP_DIR / filename
-    if not f.exists():
-        f = APP_DIR / "static" / filename
-    if not f.exists():
-        return f"Not found: {filename}", 404
-    mt = "application/javascript" if filename.endswith(".js") else "text/plain"
-    return Response(f.read_bytes(), mimetype=mt)
+    # البحث في: backend/ ثم backend/static/ ثم frontend/ (للملفات المقسّمة)
+    search_paths = [
+        APP_DIR / filename,
+        APP_DIR / "static" / filename,
+        APP_DIR.parent / "frontend" / filename,
+        APP_DIR.parent / "frontend" / "src" / filename,
+    ]
+    for f in search_paths:
+        if f.exists():
+            mt = ("application/javascript" if filename.endswith(".js")
+                  else "text/css" if filename.endswith(".css")
+                  else "text/plain")
+            return Response(f.read_bytes(), mimetype=mt)
+    return f"Not found: {filename}", 404
 
 if __name__ == "__main__":
     init_db()
