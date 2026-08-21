@@ -617,6 +617,45 @@ function AdminPanel({ onClose }) {
               <span style={{fontSize:13,fontWeight:500}}>{v}</span>
             </div>
           ))}
+          {isDriver && selected.vehicle && (() => {
+            const v = selected.vehicle;
+            const vFields = [
+              ["رقم التسجيل", v.num_immatriculation],
+              ["الماركة", v.marque],
+              ["النوع", v.type_vehicule],
+              ["الطراز", v.modele],
+              ["رقم الهيكل", v.num_serie],
+              ["Genre", v.genre],
+              ["الطاقة", v.energie],
+              ["القوة", v.puissance],
+              ["عدد المقاعد", v.nb_places],
+              ["سنة الاستعمال", v.annee_circulation],
+              ["الرقم السابق", v.num_precedent],
+              ["اسم المالك", v.proprietaire_nom],
+              ["لقب المالك", v.proprietaire_prenom],
+              ["ميلاد المالك", v.proprietaire_dob],
+              ["مكان الميلاد", v.proprietaire_lieu],
+              ["عنوان المالك", v.proprietaire_adresse],
+              ["بلدية المالك", v.proprietaire_commune],
+              ["ولاية المالك", v.proprietaire_wilaya],
+              ["المهنة", v.profession],
+            ].filter(([,val]) => val);
+            return vFields.length > 0 ? (
+              <div style={{marginTop:16}}>
+                <div style={{fontWeight:700,fontSize:13,color:"#374151",
+                  borderBottom:"2px solid #fde68a",paddingBottom:6,marginBottom:10,
+                  background:"#fffbeb",padding:"8px 10px",borderRadius:"8px 8px 0 0"}}>
+                  🚗 بيانات المركبة
+                </div>
+                {vFields.map(([l,val])=>(
+                  <div key={l} style={{display:"flex",gap:10,padding:"6px 0",borderBottom:"1px solid #fef3c7"}}>
+                    <span style={{color:"#92400e",fontSize:13,minWidth:130,flexShrink:0}}>{l}</span>
+                    <span style={{fontSize:13,fontWeight:500}}>{val}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null;
+          })()}
           {isDriver&&(
             <div style={{marginTop:16}}>
               <p style={{fontSize:12,color:"#6b7280",marginBottom:8}}>تغيير الحالة:</p>
