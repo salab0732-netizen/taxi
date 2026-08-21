@@ -1,7 +1,3 @@
-const { useState, useRef, useCallback, useEffect } = React;
-
-
-
 // ==================== CONFIG ====================
 // عند النشر بـ ngrok، يكون الـ API على نفس الـ origin
 const API_BASE = window.location.hostname === "localhost"
@@ -25,13 +21,21 @@ const LICENSE_CATEGORIES = ["A","A1","A2","AM","B","B1","BE","C","C1","C1E","CE"
 const INITIAL_FORM = {
   nomAr:"", prenomAr:"", nom:"", prenom:"",
   dateNaissance:"", lieuNaissance:"", wilayaNaissance:"", nationalite:"جزائري",
-  nin:"", telephone:"", telephone2:"", adresse:"",
+  nin:"", telephone:"", telephone2:"", adresse:"", commune:"", wilaya:"",
   numPermis:"", dateDelivrance:"", dateExpiration:"",
-  lieuDelivrance:"", categories:[], notes:"",
+  lieuDelivrance:"", wilayaDelivrance:"", categories:[], notes:"",
   // بيانات المركبة (من البطاقة الرمادية)
-  numImmatriculation:"", marque:"", typeVehicule:"", modele:"",
-  numSerie:"", genre:"", energie:"", puissance:"",
-  nbPlaces:"", anneeCirculation:"", numPrecedent:"",
+  numImmatriculation:"", numPrecedent:"",
+  marque:"", typeVehicule:"", modele:"",
+  numSerie:"", genre:"", carrosserie:"", energie:"", puissance:"",
+  nbPlaces:"", poidsTotal:"", chargeUtile:"", anneeCirculation:"",
+  vehiculeDateDelivrance:"", vehiculeLieuDelivrance:"", vehiculeWilayaDelivrance:"",
+  quittanceNum:"", quittanceMontant:"", quittanceDate:"",
+  // بيانات مالك المركبة (من البطاقة الرمادية)
+  proprietaireNom:"", proprietairePrenom:"",
+  proprietaireDateNaissance:"", proprietaireLieu:"",
+  proprietaireAdresse:"", proprietaireCommune:"", proprietaireWilaya:"",
+  profession:"",
 };
 
 // ==================== OCR ====================
