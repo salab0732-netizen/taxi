@@ -156,25 +156,13 @@ function ReviewStep({ form, setForm, preview }) {
       </div>
 
       {/* الهوية */}
-      <h3 style={{fontSize:13,fontWeight:700,color:"#1a6b3c",borderBottom:"2px solid #d1fae5",paddingBottom:7,marginBottom:14}}>🪪 بيانات الهوية</h3>
+      <h3 style={{fontSize:13,fontWeight:700,color:"#1a6b3c",borderBottom:"2px solid #d1fae5",paddingBottom:7,marginBottom:14}}>🪪 بيانات التعريف</h3>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 14px"}}>
-        <Field label="اللقب (عربي)" required>
-          <input style={inp} value={form.nomAr} onChange={e=>upd("nomAr",e.target.value)} placeholder="بن علي" dir="rtl"/>
-        </Field>
-        <Field label="الاسم (عربي)" required>
-          <input style={inp} value={form.prenomAr} onChange={e=>upd("prenomAr",e.target.value)} placeholder="محمد" dir="rtl"/>
-        </Field>
-        <Field label="Nom (فرنسي)">
-          <input style={inp} value={form.nom} onChange={e=>upd("nom",e.target.value)} placeholder="BEN ALI"/>
-        </Field>
-        <Field label="Prénom (فرنسي)">
-          <input style={inp} value={form.prenom} onChange={e=>upd("prenom",e.target.value)} placeholder="Mohamed"/>
-        </Field>
         <Field label="تاريخ الميلاد" required>
           <input type="date" style={inp} value={form.dateNaissance} onChange={e=>upd("dateNaissance",e.target.value)}/>
         </Field>
         <Field label="مكان الميلاد">
-          <input style={inp} value={form.lieuNaissance} onChange={e=>upd("lieuNaissance",e.target.value)} placeholder="قد لا يكون مطبوعاً على الرخصة — أدخله يدوياً إن رغبت" dir="rtl"/>
+          <input style={inp} value={form.lieuNaissance} onChange={e=>upd("lieuNaissance",e.target.value)} placeholder="البلدية، الولاية" dir="rtl"/>
         </Field>
       </div>
 
@@ -185,10 +173,8 @@ function ReviewStep({ form, setForm, preview }) {
         </select>
       </Field>
 
-      <Field label="رقم التعريف الوطني (NIN)" required hint="18 رقماً">
-        <input style={inp} value={form.nin}
-          onChange={e=>upd("nin",e.target.value.replace(/\D/g,"").slice(0,18))}
-          placeholder="100XXXXXXXXXXXXXXX" maxLength={18}/>
+      <Field label="العنوان / المقر الاجتماعي" required>
+        <input style={inp} value={form.adresse} onChange={e=>upd("adresse",e.target.value)} placeholder="الشارع، الحي، البلدية، الولاية" dir="rtl"/>
       </Field>
 
       {/* التواصل */}
@@ -201,9 +187,6 @@ function ReviewStep({ form, setForm, preview }) {
           <input style={inp} value={form.telephone2} onChange={e=>upd("telephone2",e.target.value)} placeholder="06XXXXXXXX" maxLength={10}/>
         </Field>
       </div>
-      <Field label="العنوان">
-        <input style={inp} value={form.adresse} onChange={e=>upd("adresse",e.target.value)} placeholder="الشارع، الحي، البلدية، الولاية" dir="rtl"/>
-      </Field>
 
       {/* الرخصة */}
       <h3 style={{fontSize:13,fontWeight:700,color:"#1a6b3c",borderBottom:"2px solid #d1fae5",paddingBottom:7,marginBottom:14,marginTop:22}}>🚗 رخصة السياقة</h3>
@@ -380,22 +363,26 @@ function AdminPanel({ onClose }) {
               <tr>
                 {["#","اللقب والاسم (عربي)","Nom Prénom","تاريخ الميلاد","مكان الميلاد",
                   "NIN","الهاتف","رقم الرخصة","تاريخ الإصدار","تاريخ الانتهاء",
-                  "مكان الإصدار","الفئات","الولاية","العنوان","الحالة","تاريخ التسجيل",""].map(h=>(
+                  "مكان الإصدار","الفئات","الولاية","العنوان",
+                  "رقم تسجيل المركبة","الماركة","النوع","سنة الاستعمال","عدد المقاعد",
+                  "الحالة","تاريخ التسجيل",""].map(h=>(
                   <th key={h} style={thStyle("#1a6b3c")}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {!drivers.length ? (
-                <tr><td colSpan={17} style={{textAlign:"center",padding:30,color:"#9ca3af"}}>لا توجد نتائج</td></tr>
+                <tr><td colSpan={22} style={{textAlign:"center",padding:30,color:"#9ca3af"}}>لا توجد نتائج</td></tr>
               ) : drivers.map((r,i) => (
                 <tr key={r.id} onClick={()=>setSelected({...r,_type:"driver"})}
                   style={{background:i%2?"#fafafa":"#fff",cursor:"pointer"}}
                   onMouseEnter={e=>e.currentTarget.style.background="#f0fdf4"}
                   onMouseLeave={e=>e.currentTarget.style.background=i%2?"#fafafa":"#fff"}>
                   <td style={tdStyle()}>{r.id}</td>
-                  <td style={{...tdStyle(),fontWeight:600}}>{r.nom_ar} {r.prenom_ar}</td>
-                  <td style={tdStyle()}>{r.nom_fr} {r.prenom_fr}</td>
+                  <td style={{...tdStyle(),fontWeight:600}}>
+                    <div>{r.nom_ar} {r.prenom_ar}</div>
+                    {(r.nom_fr||r.prenom_fr)&&<div style={{fontSize:11,color:"#6b7280",fontStyle:"italic",marginTop:2}}>{r.nom_fr} {r.prenom_fr}</div>}
+                  </td>
                   <td style={tdStyle()}>{r.date_naissance}</td>
                   <td style={tdStyle()}>{r.lieu_naissance}</td>
                   <td style={{...tdStyle(),fontFamily:"monospace"}}>{r.nin}</td>
@@ -407,6 +394,11 @@ function AdminPanel({ onClose }) {
                   <td style={tdStyle()}>{(r.categories||[]).join(" ")}</td>
                   <td style={tdStyle()}>{r.wilaya}</td>
                   <td style={tdStyle()}>{r.adresse}</td>
+                  <td style={{...tdStyle(),fontFamily:"monospace",color:"#92400e",fontWeight:600}}>{r.vehicle?.num_immatriculation||"—"}</td>
+                  <td style={tdStyle()}>{r.vehicle?.marque||"—"}</td>
+                  <td style={tdStyle()}>{r.vehicle?.type_vehicule||"—"}</td>
+                  <td style={tdStyle()}>{r.vehicle?.annee_circulation||"—"}</td>
+                  <td style={{...tdStyle(),textAlign:"center"}}>{r.vehicle?.nb_places||"—"}</td>
                   <td style={tdStyle()}>
                     <span style={{padding:"2px 8px",borderRadius:12,fontSize:11,fontWeight:700,
                       background:`${statutColor(r.statut)}18`,color:statutColor(r.statut)}}>
@@ -499,7 +491,7 @@ function AdminPanel({ onClose }) {
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
             <thead>
               <tr>
-                {["#","رقم التسجيل","اللقب والاسم (عربي)","Nom Prénom",
+                {["#","رقم التسجيل","الاسم واللقب",
                   "تاريخ الميلاد","مكان الميلاد","NIN","رقم الرخصة",
                   "تاريخ انتهاء الرخصة","الهاتف","العنوان","الحالة","تاريخ التسجيل",""].map(h=>(
                   <th key={h} style={thStyle("#b45309")}>{h}</th>
