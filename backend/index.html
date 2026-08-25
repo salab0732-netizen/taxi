@@ -498,25 +498,13 @@ function ReviewStep({ form, setForm, preview }) {
       </div>
 
       {/* الهوية */}
-      <h3 style={{fontSize:13,fontWeight:700,color:"#1a6b3c",borderBottom:"2px solid #d1fae5",paddingBottom:7,marginBottom:14}}>🪪 بيانات الهوية</h3>
+      <h3 style={{fontSize:13,fontWeight:700,color:"#1a6b3c",borderBottom:"2px solid #d1fae5",paddingBottom:7,marginBottom:14}}>🪪 بيانات التعريف</h3>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 14px"}}>
-        <Field label="اللقب (عربي)" required>
-          <input style={inp} value={form.nomAr} onChange={e=>upd("nomAr",e.target.value)} placeholder="بن علي" dir="rtl"/>
-        </Field>
-        <Field label="الاسم (عربي)" required>
-          <input style={inp} value={form.prenomAr} onChange={e=>upd("prenomAr",e.target.value)} placeholder="محمد" dir="rtl"/>
-        </Field>
-        <Field label="Nom (فرنسي)">
-          <input style={inp} value={form.nom} onChange={e=>upd("nom",e.target.value)} placeholder="BEN ALI"/>
-        </Field>
-        <Field label="Prénom (فرنسي)">
-          <input style={inp} value={form.prenom} onChange={e=>upd("prenom",e.target.value)} placeholder="Mohamed"/>
-        </Field>
         <Field label="تاريخ الميلاد" required>
           <input type="date" style={inp} value={form.dateNaissance} onChange={e=>upd("dateNaissance",e.target.value)}/>
         </Field>
         <Field label="مكان الميلاد">
-          <input style={inp} value={form.lieuNaissance} onChange={e=>upd("lieuNaissance",e.target.value)} placeholder="قد لا يكون مطبوعاً على الرخصة — أدخله يدوياً إن رغبت" dir="rtl"/>
+          <input style={inp} value={form.lieuNaissance} onChange={e=>upd("lieuNaissance",e.target.value)} placeholder="البلدية، الولاية" dir="rtl"/>
         </Field>
       </div>
 
@@ -527,10 +515,8 @@ function ReviewStep({ form, setForm, preview }) {
         </select>
       </Field>
 
-      <Field label="رقم التعريف الوطني (NIN)" required hint="18 رقماً">
-        <input style={inp} value={form.nin}
-          onChange={e=>upd("nin",e.target.value.replace(/\D/g,"").slice(0,18))}
-          placeholder="100XXXXXXXXXXXXXXX" maxLength={18}/>
+      <Field label="العنوان / المقر الاجتماعي" required>
+        <input style={inp} value={form.adresse} onChange={e=>upd("adresse",e.target.value)} placeholder="الشارع، الحي، البلدية، الولاية" dir="rtl"/>
       </Field>
 
       {/* التواصل */}
@@ -543,9 +529,6 @@ function ReviewStep({ form, setForm, preview }) {
           <input style={inp} value={form.telephone2} onChange={e=>upd("telephone2",e.target.value)} placeholder="06XXXXXXXX" maxLength={10}/>
         </Field>
       </div>
-      <Field label="العنوان">
-        <input style={inp} value={form.adresse} onChange={e=>upd("adresse",e.target.value)} placeholder="الشارع، الحي، البلدية، الولاية" dir="rtl"/>
-      </Field>
 
       {/* الرخصة */}
       <h3 style={{fontSize:13,fontWeight:700,color:"#1a6b3c",borderBottom:"2px solid #d1fae5",paddingBottom:7,marginBottom:14,marginTop:22}}>🚗 رخصة السياقة</h3>
@@ -722,14 +705,16 @@ function AdminPanel({ onClose }) {
               <tr>
                 {["#","اللقب والاسم (عربي)","Nom Prénom","تاريخ الميلاد","مكان الميلاد",
                   "NIN","الهاتف","رقم الرخصة","تاريخ الإصدار","تاريخ الانتهاء",
-                  "مكان الإصدار","الفئات","الولاية","العنوان","الحالة","تاريخ التسجيل",""].map(h=>(
+                  "مكان الإصدار","الفئات","الولاية","العنوان",
+                  "رقم تسجيل المركبة","الماركة","النوع","سنة الاستعمال","عدد المقاعد",
+                  "الحالة","تاريخ التسجيل",""].map(h=>(
                   <th key={h} style={thStyle("#1a6b3c")}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {!drivers.length ? (
-                <tr><td colSpan={17} style={{textAlign:"center",padding:30,color:"#9ca3af"}}>لا توجد نتائج</td></tr>
+                <tr><td colSpan={22} style={{textAlign:"center",padding:30,color:"#9ca3af"}}>لا توجد نتائج</td></tr>
               ) : drivers.map((r,i) => (
                 <tr key={r.id} onClick={()=>setSelected({...r,_type:"driver"})}
                   style={{background:i%2?"#fafafa":"#fff",cursor:"pointer"}}
@@ -749,6 +734,11 @@ function AdminPanel({ onClose }) {
                   <td style={tdStyle()}>{(r.categories||[]).join(" ")}</td>
                   <td style={tdStyle()}>{r.wilaya}</td>
                   <td style={tdStyle()}>{r.adresse}</td>
+                  <td style={{...tdStyle(),fontFamily:"monospace",color:"#92400e",fontWeight:600}}>{r.vehicle?.num_immatriculation||"—"}</td>
+                  <td style={tdStyle()}>{r.vehicle?.marque||"—"}</td>
+                  <td style={tdStyle()}>{r.vehicle?.type_vehicule||"—"}</td>
+                  <td style={tdStyle()}>{r.vehicle?.annee_circulation||"—"}</td>
+                  <td style={{...tdStyle(),textAlign:"center"}}>{r.vehicle?.nb_places||"—"}</td>
                   <td style={tdStyle()}>
                     <span style={{padding:"2px 8px",borderRadius:12,fontSize:11,fontWeight:700,
                       background:`${statutColor(r.statut)}18`,color:statutColor(r.statut)}}>
@@ -1149,12 +1139,20 @@ const INITIAL_COMPANY_FORM = {
   nbVehicules: "", typeVehicules: "", notes: "",
 };
 
-const INITIAL_VEHICLE_FORM = {
+// سجل مشترك: السائق + مركبته في كيان واحد
+const INITIAL_DECLARATION_FORM = {
+  // بيانات السائق
+  nomAr:"", prenomAr:"", nom:"", prenom:"",
+  nin:"", numPermis:"", dateExpiration:"",
+  dateDelivrance:"", lieuDelivrance:"", categories:[],
+  telephone:"", adresse:"",
+  licenseImageB64: null,
+  // بيانات المركبة
   numImmatriculation:"", marque:"", typeVehicule:"", modele:"",
   numSerie:"", genre:"", energie:"", puissance:"",
   nbPlaces:"", anneeCirculation:"", numPrecedent:"",
   proprietaireNom:"", proprietairePrenom:"",
-  proprietaireDateNaissance:"", proprietaireLieu:"", proprietaireAdresse:"",
+  carteGriseImageB64: null,
 };
 
 // ==================== LANDING PAGE ====================
@@ -1216,22 +1214,430 @@ function LandingPage({ onSelect }) {
   );
 }
 
+// ==================== نموذج التصريح (سائق + مركبة) ====================
+function DeclarationForm({ onAdd, onCancel, BLUE }) {
+  const [declStep, setDeclStep] = useState(0);
+  const [form, setForm]         = useState(INITIAL_DECLARATION_FORM);
+  const [licensePreview, setLicensePreview]     = useState(null);
+  const [carteGrisePreview, setCarteGrisePreview] = useState(null);
+  const [loading, setLoading]   = useState(false);
+
+  const inp2 = {width:"100%",padding:"9px 11px",border:"1.5px solid #d1d5db",
+    borderRadius:8,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit",background:"#fff"};
+
+  const toggleCat = cat => {
+    const cats = form.categories.includes(cat)
+      ? form.categories.filter(c=>c!==cat)
+      : [...form.categories, cat];
+    setForm(f=>({...f, categories:cats}));
+  };
+
+  // خطوة 0: رفع رخصة السياقة
+  async function handleLicenseFile(file) {
+    if (!file) return;
+    setLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const dataUrl = e.target.result;
+      const b64 = dataUrl.split(",")[1];
+      setLicensePreview(dataUrl);
+      try {
+        const data = await extractLicenseData(b64, file.type);
+        if (data) setForm(f=>({...f, ...Object.fromEntries(Object.entries(data).filter(([,v])=>v!=="")), licenseImageB64: b64}));
+        else setForm(f=>({...f, licenseImageB64: b64}));
+      } catch {}
+      setLoading(false);
+      setDeclStep(1);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // خطوة 1: رفع البطاقة الرمادية
+  async function handleCarteGriseFile(file) {
+    if (!file) return;
+    setLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const dataUrl = e.target.result;
+      const b64 = dataUrl.split(",")[1];
+      setCarteGrisePreview(dataUrl);
+      try {
+        const data = await extractCarteGriseData(b64, file.type);
+        if (data) setForm(f=>({...f, ...Object.fromEntries(Object.entries(data).filter(([,v])=>v!=="")), carteGriseImageB64: b64}));
+        else setForm(f=>({...f, carteGriseImageB64: b64}));
+      } catch {}
+      setLoading(false);
+      setDeclStep(2);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  const licenseRef    = React.useRef();
+  const carteGriseRef = React.useRef();
+
+  // ---- مؤشر الخطوات ----
+  const steps = ["🪪 رخصة السياقة", "🚗 البطاقة الرمادية", "✏️ المراجعة"];
+
+  return (
+    <div style={{marginTop:16,background:"#fff",borderRadius:14,padding:18,border:`2px solid ${BLUE}44`,boxShadow:"0 2px 12px rgba(0,0,0,.06)"}}>
+
+      {/* رأس النموذج */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <h5 style={{margin:0,color:BLUE,fontWeight:700,fontSize:15}}>📋 تصريح جديد — سائق ومركبة</h5>
+        <button onClick={onCancel}
+          style={{padding:"3px 10px",borderRadius:6,border:"1px solid #d1d5db",background:"#fff",cursor:"pointer",fontSize:13,color:"#6b7280"}}>
+          ✕
+        </button>
+      </div>
+
+      {/* شريط الخطوات */}
+      <div style={{display:"flex",alignItems:"center",marginBottom:20,gap:0}}>
+        {steps.map((s,i)=>(
+          <React.Fragment key={i}>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,flex:1}}>
+              <div style={{
+                width:30,height:30,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",
+                fontWeight:700,fontSize:13,
+                background: i < declStep ? BLUE : i === declStep ? BLUE+"cc" : "#e5e7eb",
+                color: i <= declStep ? "#fff" : "#9ca3af",
+                transition:"all .3s"
+              }}>{i < declStep ? "✓" : i+1}</div>
+              <span style={{fontSize:10,color:i===declStep?BLUE:"#9ca3af",fontWeight:i===declStep?700:400,textAlign:"center",whiteSpace:"nowrap"}}>{s}</span>
+            </div>
+            {i<2&&<div style={{height:2,flex:1,background:i<declStep?BLUE:"#e5e7eb",marginBottom:16,transition:"all .3s"}}/>}
+          </React.Fragment>
+        ))}
+      </div>
+
+      {/* ===== خطوة 0: رفع رخصة السياقة ===== */}
+      {declStep === 0 && (
+        <div>
+          <div
+            onClick={()=>!loading&&licenseRef.current.click()}
+            onDragOver={e=>e.preventDefault()}
+            onDrop={e=>{e.preventDefault();handleLicenseFile(e.dataTransfer.files[0]);}}
+            style={{border:`2px dashed ${BLUE}`,borderRadius:12,padding:"32px 16px",textAlign:"center",
+              cursor:loading?"default":"pointer",background:"#f8faff",marginBottom:12}}>
+            {loading ? (
+              <div style={{color:BLUE,fontSize:13}}>
+                <div style={{width:30,height:30,border:`3px solid ${BLUE}`,borderTopColor:"transparent",
+                  borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 10px"}}/>
+                جارٍ استخراج بيانات الرخصة...
+              </div>
+            ) : licensePreview ? (
+              <img src={licensePreview} style={{maxHeight:140,maxWidth:"100%",borderRadius:8}} alt="license"/>
+            ) : (
+              <>
+                <div style={{fontSize:44,marginBottom:8}}>🪪</div>
+                <p style={{color:"#374151",fontWeight:600,fontSize:14,margin:"0 0 4px"}}>ارفع صورة رخصة السياقة</p>
+                <p style={{color:"#9ca3af",fontSize:12,margin:0}}>JPG، PNG — الرخصة الورقية أو البيومترية</p>
+              </>
+            )}
+          </div>
+          <input ref={licenseRef} type="file" accept="image/*" style={{display:"none"}}
+            onChange={e=>handleLicenseFile(e.target.files[0])}/>
+          <button onClick={()=>setDeclStep(1)}
+            style={{width:"100%",padding:9,borderRadius:8,border:"1.5px solid #d1d5db",background:"#fff",
+              cursor:"pointer",color:"#6b7280",fontSize:12,marginTop:4}}>
+            تخطي — إدخال يدوي ←
+          </button>
+        </div>
+      )}
+
+      {/* ===== خطوة 1: رفع البطاقة الرمادية ===== */}
+      {declStep === 1 && (
+        <div>
+          <div
+            onClick={()=>!loading&&carteGriseRef.current.click()}
+            onDragOver={e=>e.preventDefault()}
+            onDrop={e=>{e.preventDefault();handleCarteGriseFile(e.dataTransfer.files[0]);}}
+            style={{border:`2px dashed ${BLUE}`,borderRadius:12,padding:"32px 16px",textAlign:"center",
+              cursor:loading?"default":"pointer",background:"#f8faff",marginBottom:12}}>
+            {loading ? (
+              <div style={{color:BLUE,fontSize:13}}>
+                <div style={{width:30,height:30,border:`3px solid ${BLUE}`,borderTopColor:"transparent",
+                  borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 10px"}}/>
+                جارٍ استخراج بيانات المركبة...
+              </div>
+            ) : carteGrisePreview ? (
+              <img src={carteGrisePreview} style={{maxHeight:140,maxWidth:"100%",borderRadius:8}} alt="carte grise"/>
+            ) : (
+              <>
+                <div style={{fontSize:44,marginBottom:8}}>🚗</div>
+                <p style={{color:"#374151",fontWeight:600,fontSize:14,margin:"0 0 4px"}}>ارفع صورة البطاقة الرمادية</p>
+                <p style={{color:"#9ca3af",fontSize:12,margin:0}}>وثيقة تسجيل المركبة</p>
+              </>
+            )}
+          </div>
+          <input ref={carteGriseRef} type="file" accept="image/*" style={{display:"none"}}
+            onChange={e=>handleCarteGriseFile(e.target.files[0])}/>
+          <div style={{display:"flex",gap:8,marginTop:4}}>
+            <button onClick={()=>setDeclStep(0)}
+              style={{flex:1,padding:9,borderRadius:8,border:"1.5px solid #d1d5db",background:"#fff",cursor:"pointer",color:"#6b7280",fontSize:12}}>
+              ← رجوع
+            </button>
+            <button onClick={()=>setDeclStep(2)}
+              style={{flex:2,padding:9,borderRadius:8,border:"1.5px solid #d1d5db",background:"#fff",cursor:"pointer",color:"#6b7280",fontSize:12}}>
+              تخطي — إدخال يدوي ←
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== خطوة 2: مراجعة وتعديل ===== */}
+      {declStep === 2 && (
+        <div>
+          {/* معاينة الصور */}
+          {(licensePreview || carteGrisePreview) && (
+            <div style={{display:"flex",gap:8,marginBottom:14}}>
+              {licensePreview && (
+                <div style={{flex:1,textAlign:"center"}}>
+                  <div style={{fontSize:10,color:"#6b7280",marginBottom:4}}>🪪 رخصة السياقة</div>
+                  <img src={licensePreview} style={{maxHeight:80,maxWidth:"100%",borderRadius:6,border:"1px solid #e5e7eb"}} alt=""/>
+                </div>
+              )}
+              {carteGrisePreview && (
+                <div style={{flex:1,textAlign:"center"}}>
+                  <div style={{fontSize:10,color:"#6b7280",marginBottom:4}}>🚗 البطاقة الرمادية</div>
+                  <img src={carteGrisePreview} style={{maxHeight:80,maxWidth:"100%",borderRadius:6,border:"1px solid #e5e7eb"}} alt=""/>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* بيانات السائق */}
+          <div style={{background:"#f0fdf4",borderRadius:10,padding:12,marginBottom:12}}>
+            <h6 style={{color:"#1a6b3c",fontWeight:700,fontSize:12,margin:"0 0 10px",borderBottom:"1px solid #d1fae5",paddingBottom:6}}>
+              👤 بيانات السائق
+            </h6>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              {[
+                ["اللقب (عربي)","nomAr"],["الاسم (عربي)","prenomAr"],
+                ["Nom","nom"],["Prénom","prenom"],
+                ["NIN","nin"],["الهاتف","telephone"],
+                ["رقم الرخصة","numPermis"],["تاريخ الانتهاء","dateExpiration"],
+                ["مكان الإصدار","lieuDelivrance"],
+              ].map(([label,key])=>(
+                <div key={key} style={{display:"flex",flexDirection:"column",gap:3}}>
+                  <label style={{fontSize:10,fontWeight:600,color:"#6b7280"}}>{label}</label>
+                  <input value={form[key]||""} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))}
+                    style={{...inp2}} type={key==="dateExpiration"?"date":"text"}/>
+                </div>
+              ))}
+              <div style={{gridColumn:"span 2"}}>
+                <label style={{fontSize:10,fontWeight:600,color:"#6b7280",display:"block",marginBottom:4}}>فئات الرخصة</label>
+                <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                  {LICENSE_CATEGORIES.map(cat=>(
+                    <button key={cat} onClick={()=>toggleCat(cat)} style={{
+                      padding:"4px 10px",borderRadius:16,fontSize:11,fontWeight:600,cursor:"pointer",
+                      border:`1.5px solid ${form.categories.includes(cat)?BLUE:"#d1d5db"}`,
+                      background:form.categories.includes(cat)?BLUE:"#fff",
+                      color:form.categories.includes(cat)?"#fff":"#374151"
+                    }}>{cat}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* بيانات المركبة */}
+          <div style={{background:"#eff6ff",borderRadius:10,padding:12,marginBottom:14}}>
+            <h6 style={{color:BLUE,fontWeight:700,fontSize:12,margin:"0 0 10px",borderBottom:"1px solid #bfdbfe",paddingBottom:6}}>
+              🚗 بيانات المركبة
+            </h6>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              {[
+                ["رقم التسجيل *","numImmatriculation"],["الماركة","marque"],
+                ["الطراز","modele"],["نوع المركبة","typeVehicule"],
+                ["رقم الهيكل","numSerie"],["عدد المقاعد","nbPlaces"],
+                ["سنة أول استعمال","anneeCirculation"],["الرقم السابق","numPrecedent"],
+                ["اسم المالك","proprietaireNom"],["لقب المالك","proprietairePrenom"],
+              ].map(([label,key])=>(
+                <div key={key} style={{display:"flex",flexDirection:"column",gap:3}}>
+                  <label style={{fontSize:10,fontWeight:600,color:"#6b7280"}}>{label}</label>
+                  <input value={form[key]||""} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))}
+                    style={{...inp2}}/>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* أزرار */}
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>setDeclStep(1)}
+              style={{flex:1,padding:10,borderRadius:8,border:"1.5px solid #d1d5db",background:"#fff",cursor:"pointer",fontSize:13,color:"#374151"}}>
+              ← رجوع
+            </button>
+            <button
+              onClick={()=>{
+                if (!form.numImmatriculation.trim() && !form.nomAr.trim() && !form.nom.trim()) return;
+                onAdd({...form, licensePreview, carteGrisePreview});
+              }}
+              style={{flex:2,padding:10,borderRadius:8,border:"none",background:BLUE,color:"#fff",cursor:"pointer",fontWeight:700,fontSize:13}}>
+              ✅ إضافة للجدول
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==================== جدول التصريحات ====================
+function DeclarationsTable({ declarations, onRemove, BLUE }) {
+  const [expanded, setExpanded] = useState(null);
+
+  if (declarations.length === 0) return (
+    <p style={{color:"#9ca3af",fontSize:13,textAlign:"center",margin:"12px 0"}}>
+      لم يُضف أي تصريح بعد — اضغط "+ إضافة تصريح" لبدء التسجيل
+    </p>
+  );
+
+  return (
+    <div style={{overflowX:"auto",borderRadius:10,border:"1px solid #e5e7eb",marginTop:4}}>
+      <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,minWidth:700}}>
+        <thead>
+          <tr style={{background:BLUE+"11"}}>
+            {["#","السائق","NIN","رخصة / فئات","رقم التسجيل","المركبة","سنة","",""].map((h,i)=>(
+              <th key={i} style={{padding:"9px 10px",textAlign:"right",color:"#374151",fontWeight:700,
+                borderBottom:`2px solid ${BLUE}33`,whiteSpace:"nowrap",fontSize:11}}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {declarations.map((d,i)=>(
+            <React.Fragment key={i}>
+              <tr
+                style={{background:i%2===0?"#fff":"#f8faff",cursor:"pointer",transition:"background .15s"}}
+                onMouseEnter={e=>e.currentTarget.style.background=BLUE+"0d"}
+                onMouseLeave={e=>e.currentTarget.style.background=i%2===0?"#fff":"#f8faff"}>
+
+                {/* رقم */}
+                <td style={{padding:"9px 10px",color:"#9ca3af",fontWeight:600}}>{i+1}</td>
+
+                {/* السائق */}
+                <td style={{padding:"9px 10px"}}>
+                  <div style={{fontWeight:700,color:"#1a6b3c",fontSize:12}}>
+                    {d.nomAr||d.nom||"—"} {d.prenomAr||d.prenom||""}
+                  </div>
+                  {d.telephone&&<div style={{fontSize:10,color:"#6b7280"}}>{d.telephone}</div>}
+                  {/* معاينة رخصة صغيرة */}
+                  {d.licensePreview&&(
+                    <img src={d.licensePreview}
+                      style={{height:22,borderRadius:3,border:"1px solid #d1d5db",marginTop:3,cursor:"pointer"}}
+                      onClick={()=>setExpanded(expanded===i+"-lic"?null:i+"-lic")}
+                      title="رخصة السياقة" alt=""/>
+                  )}
+                </td>
+
+                {/* NIN */}
+                <td style={{padding:"9px 10px",fontFamily:"monospace",fontSize:11,color:"#374151"}}>
+                  {d.nin||"—"}
+                </td>
+
+                {/* رخصة / فئات */}
+                <td style={{padding:"9px 10px"}}>
+                  <div style={{fontSize:11,color:"#374151"}}>{d.numPermis||"—"}</div>
+                  {d.categories?.length>0&&(
+                    <div style={{display:"flex",flexWrap:"wrap",gap:2,marginTop:3}}>
+                      {d.categories.map(c=>(
+                        <span key={c} style={{padding:"1px 5px",borderRadius:8,background:BLUE+"22",color:BLUE,fontSize:9,fontWeight:700}}>{c}</span>
+                      ))}
+                    </div>
+                  )}
+                  {d.dateExpiration&&<div style={{fontSize:9,color:"#9ca3af",marginTop:2}}>انتهاء: {d.dateExpiration}</div>}
+                </td>
+
+                {/* رقم التسجيل */}
+                <td style={{padding:"9px 10px",fontWeight:700,color:BLUE,fontSize:12}}>
+                  {d.numImmatriculation||"—"}
+                  {/* معاينة بطاقة رمادية صغيرة */}
+                  {d.carteGrisePreview&&(
+                    <div>
+                      <img src={d.carteGrisePreview}
+                        style={{height:22,borderRadius:3,border:"1px solid #d1d5db",marginTop:3,cursor:"pointer"}}
+                        onClick={()=>setExpanded(expanded===i+"-cg"?null:i+"-cg")}
+                        title="البطاقة الرمادية" alt=""/>
+                    </div>
+                  )}
+                </td>
+
+                {/* المركبة */}
+                <td style={{padding:"9px 10px"}}>
+                  <div style={{fontSize:12,color:"#374151"}}>{d.marque||"—"} {d.modele||""}</div>
+                  {d.typeVehicule&&<div style={{fontSize:10,color:"#6b7280"}}>{d.typeVehicule}</div>}
+                  {d.nbPlaces&&<div style={{fontSize:10,color:"#6b7280"}}>{d.nbPlaces} مقاعد</div>}
+                </td>
+
+                {/* سنة */}
+                <td style={{padding:"9px 10px",color:"#6b7280",fontSize:11}}>
+                  {d.anneeCirculation||"—"}
+                </td>
+
+                {/* تفاصيل */}
+                <td style={{padding:"9px 10px"}}>
+                  <button
+                    onClick={()=>setExpanded(expanded===i?null:i)}
+                    style={{padding:"3px 8px",borderRadius:6,border:`1px solid ${BLUE}44`,
+                      background:"#fff",color:BLUE,cursor:"pointer",fontSize:10,fontWeight:600}}>
+                    {expanded===i?"▲":"▼"}
+                  </button>
+                </td>
+
+                {/* حذف */}
+                <td style={{padding:"9px 10px"}}>
+                  <button onClick={()=>onRemove(i)}
+                    style={{padding:"3px 8px",borderRadius:6,border:"1px solid #fca5a5",
+                      background:"#fef2f2",color:"#dc2626",cursor:"pointer",fontSize:10}}>
+                    حذف
+                  </button>
+                </td>
+              </tr>
+
+              {/* صف التوسيع — معاينة الصور الكبيرة */}
+              {expanded===i+"-lic"&&d.licensePreview&&(
+                <tr><td colSpan={9} style={{padding:"8px 16px",background:"#f0fdf4",borderBottom:"1px solid #e5e7eb"}}>
+                  <img src={d.licensePreview} style={{maxHeight:180,borderRadius:8,border:"1px solid #d1d5db"}} alt="رخصة السياقة"/>
+                </td></tr>
+              )}
+              {expanded===i+"-cg"&&d.carteGrisePreview&&(
+                <tr><td colSpan={9} style={{padding:"8px 16px",background:"#eff6ff",borderBottom:"1px solid #e5e7eb"}}>
+                  <img src={d.carteGrisePreview} style={{maxHeight:180,borderRadius:8,border:"1px solid #d1d5db"}} alt="البطاقة الرمادية"/>
+                </td></tr>
+              )}
+              {expanded===i&&(
+                <tr><td colSpan={9} style={{padding:"10px 16px",background:"#fafafa",borderBottom:"2px solid #e5e7eb"}}>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"6px 16px",fontSize:11}}>
+                    {[
+                      ["NIN",d.nin],["رقم الرخصة",d.numPermis],["انتهاء الرخصة",d.dateExpiration],
+                      ["مكان الإصدار",d.lieuDelivrance],["العنوان",d.adresse],["رقم الهيكل",d.numSerie],
+                      ["الطاقة",d.energie],["القوة",d.puissance],["الرقم السابق",d.numPrecedent],
+                      ["اسم المالك",d.proprietaireNom],["لقب المالك",d.proprietairePrenom],["النوع",d.genre],
+                    ].filter(([,v])=>v).map(([l,v])=>(
+                      <div key={l} style={{display:"flex",gap:6}}>
+                        <span style={{color:"#9ca3af",minWidth:80}}>{l}:</span>
+                        <span style={{color:"#374151",fontWeight:500}}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </td></tr>
+              )}
+            </React.Fragment>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ==================== COMPANY FORM ====================
 function CompanyForm({ onBack }) {
-  const [step, setStep]       = useState(0);
-  const [form, setForm]       = useState(INITIAL_COMPANY_FORM);
-  const [drivers, setDrivers] = useState([]);
-  const [saving, setSaving]   = useState(false);
-  const [errors, setErrors]   = useState([]);
-  const [driverForm, setDriverForm]       = useState(INITIAL_FORM);
-  const [driverStep, setDriverStep]       = useState(0);
-  const [driverPreview, setDriverPreview] = useState(null);
-  const [showDriverForm, setShowDriverForm] = useState(false);
-
-  // مركبات مستقلة (بدون سائق مرتبط بالضرورة)
-  const [vehicles, setVehicles]           = useState([]);
-  const [vehicleForm, setVehicleForm]     = useState(INITIAL_VEHICLE_FORM);
-  const [showVehicleForm, setShowVehicleForm] = useState(false);
+  const [form, setForm]               = useState(INITIAL_COMPANY_FORM);
+  const [declarations, setDeclarations] = useState([]);
+  const [saving, setSaving]           = useState(false);
+  const [errors, setErrors]           = useState([]);
+  const [showDeclForm, setShowDeclForm] = useState(false);
+  const [submitted, setSubmitted]     = useState(false);
 
   const inp = {width:"100%",padding:"10px 12px",border:"1.5px solid #d1d5db",
     borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit",background:"#fff"};
@@ -1247,45 +1653,46 @@ function CompanyForm({ onBack }) {
     return e;
   }
 
-  function addDriver() {
-    if (!driverForm.nomAr.trim() && !driverForm.nom.trim()) return;
-    setDrivers(d => [...d, { ...driverForm, preview: driverPreview }]);
-    setDriverForm(INITIAL_FORM); setDriverPreview(null);
-    setDriverStep(0); setShowDriverForm(false);
+  function addDeclaration(decl) {
+    setDeclarations(d => [...d, decl]);
+    setShowDeclForm(false);
   }
 
-  function removeDriver(idx) { setDrivers(d => d.filter((_,i) => i !== idx)); }
-
-  function addVehicle() {
-    if (!vehicleForm.numImmatriculation.trim()) return;
-    setVehicles(v => [...v, { ...vehicleForm }]);
-    setVehicleForm(INITIAL_VEHICLE_FORM);
-    setShowVehicleForm(false);
-  }
-  function removeVehicle(idx) { setVehicles(v => v.filter((_,i) => i !== idx)); }
+  function removeDeclaration(idx) { setDeclarations(d => d.filter((_,i) => i !== idx)); }
 
   async function handleSubmit() {
     const e = validateCompany();
     if (e.length) { setErrors(e); return; }
     setSaving(true);
     try {
+      const payload = {
+        ...form,
+        drivers:   declarations.map(({licensePreview,carteGrisePreview,...rest})=>rest),
+        vehicles:  declarations.map(d=>({
+          numImmatriculation:d.numImmatriculation, marque:d.marque, modele:d.modele,
+          typeVehicule:d.typeVehicule, numSerie:d.numSerie, genre:d.genre,
+          energie:d.energie, puissance:d.puissance, nbPlaces:d.nbPlaces,
+          anneeCirculation:d.anneeCirculation, numPrecedent:d.numPrecedent,
+          proprietaireNom:d.proprietaireNom, proprietairePrenom:d.proprietairePrenom,
+        })),
+      };
       const res = await fetch(`${API_BASE}/register-company`, {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ ...form, drivers, vehicles })
+        body: JSON.stringify(payload)
       });
       const d = await res.json();
-      if (d.success) setStep(2);
+      if (d.success) setSubmitted(true);
       else setErrors([d.error || "خطأ في الحفظ"]);
-    } catch(e) { setErrors(["خطأ في الاتصال"]); }
+    } catch(err) { setErrors(["خطأ في الاتصال"]); }
     setSaving(false);
   }
 
-  if (step === 2) return (
+  if (submitted) return (
     <div style={{textAlign:"center",padding:"30px 0"}}>
       <div style={{fontSize:60,marginBottom:16}}>✅</div>
       <h3 style={{color:BLUE,fontWeight:800,fontSize:20,marginBottom:8}}>تم تسجيل الشركة بنجاح!</h3>
       <p style={{color:"#6b7280",fontSize:14,marginBottom:6}}>
-        <b>{form.nomSociete}</b> — {drivers.length} سائق و{vehicles.length} مركبة مسجّلة
+        <b>{form.nomSociete}</b> — {declarations.length} تصريح (سائق + مركبة)
       </p>
       <button onClick={onBack} style={{padding:"12px 32px",borderRadius:10,border:"none",background:BLUE,color:"#fff",cursor:"pointer",fontWeight:700}}>
         العودة للرئيسية
@@ -1341,188 +1748,47 @@ function CompanyForm({ onBack }) {
         </div>
       </div>
 
-      {/* قائمة السائقين */}
-      <div style={{background:"#f0fdf4",borderRadius:12,padding:16,marginBottom:20}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-          <h4 style={{color:"#1a6b3c",fontWeight:700,fontSize:14,margin:0}}>👤 السائقون ({drivers.length})</h4>
-          <button onClick={()=>{setShowDriverForm(true);setDriverStep(0);setDriverForm(INITIAL_FORM);}}
-            style={{padding:"6px 14px",borderRadius:8,border:"none",background:"#1a6b3c",color:"#fff",cursor:"pointer",fontWeight:600,fontSize:13}}>
-            + إضافة سائق
-          </button>
-        </div>
-
-        {drivers.length===0 ? (
-          <p style={{color:"#9ca3af",fontSize:13,textAlign:"center",margin:"8px 0"}}>لم يُضف أي سائق بعد</p>
-        ) : (
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {drivers.map((d,i)=>(
-              <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-                background:"#fff",borderRadius:8,padding:"10px 12px",border:"1px solid #d1fae5"}}>
-                <div>
-                  <div style={{fontWeight:600,fontSize:14,color:"#1a6b3c"}}>
-                    {d.nomAr||d.nom||"سائق "+(i+1)}{(d.prenomAr||d.prenom)?" "+(d.prenomAr||d.prenom):""}
-                  </div>
-                  <div style={{fontSize:12,color:"#6b7280"}}>
-                    {d.numPermis&&`رخصة: ${d.numPermis}`}
-                    {d.numImmatriculation&&` • 🚗 ${d.numImmatriculation}`}
-                  </div>
-                </div>
-                <button onClick={()=>removeDriver(i)}
-                  style={{padding:"4px 10px",borderRadius:6,border:"1px solid #fca5a5",background:"#fef2f2",color:"#dc2626",cursor:"pointer",fontSize:12}}>
-                  حذف
-                </button>
-              </div>
-            ))}
+      {/* ===== قسم التصريحات (سائق + مركبة) ===== */}
+      <div style={{background:"#f0f4ff",borderRadius:12,padding:16,marginBottom:20,border:"1.5px solid #bfdbfe"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+          <div>
+            <h4 style={{color:BLUE,fontWeight:700,fontSize:14,margin:0}}>
+              📋 التصريح بالسائقين والمركبات ({declarations.length})
+            </h4>
+            <p style={{color:"#6b7280",fontSize:11,margin:"3px 0 0"}}>
+              كل سائق مع مركبته في سطر واحد — رخصة السياقة + البطاقة الرمادية
+            </p>
           </div>
-        )}
-
-        {/* نموذج إضافة سائق */}
-        {showDriverForm&&(
-          <div style={{marginTop:16,background:"#fff",borderRadius:12,padding:16,border:"2px solid #86efac"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-              <h5 style={{margin:0,color:"#1a6b3c",fontWeight:700,fontSize:14}}>
-                {driverStep===0?"🪪 رفع رخصة السياقة":driverStep===1?"🚗 رفع البطاقة الرمادية":"✏️ مراجعة البيانات"}
-              </h5>
-              <button onClick={()=>setShowDriverForm(false)}
-                style={{padding:"3px 10px",borderRadius:6,border:"1px solid #d1d5db",background:"#fff",cursor:"pointer",fontSize:12,color:"#6b7280"}}>
-                ✕
-              </button>
-            </div>
-
-            {driverStep===0&&<>
-              <UploadStep onDone={(data,prev)=>{
-                if(data) setDriverForm(f=>({...f,...Object.fromEntries(Object.entries(data).filter(([,v])=>v!==""))}));
-                setDriverPreview(prev); setDriverStep(1);
-              }}/>
-              <button onClick={()=>setDriverStep(1)} style={{width:"100%",marginTop:8,padding:9,borderRadius:8,
-                border:"1.5px solid #d1d5db",background:"#fff",cursor:"pointer",color:"#6b7280",fontSize:12}}>
-                تخطي ←
-              </button>
-            </>}
-
-            {driverStep===1&&<>
-              <UploadCarteGrise color="#1a6b3c" onDone={(data)=>{
-                if(data) setDriverForm(f=>({...f,...Object.fromEntries(Object.entries(data).filter(([,v])=>v!==""))}));
-                setDriverStep(2);
-              }}/>
-              <button onClick={()=>setDriverStep(2)} style={{width:"100%",marginTop:8,padding:9,borderRadius:8,
-                border:"1.5px solid #d1d5db",background:"#fff",cursor:"pointer",color:"#6b7280",fontSize:12}}>
-                تخطي ←
-              </button>
-            </>}
-
-            {driverStep===2&&<>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-                {[
-                  ["اللقب (عربي)","nomAr"],["الاسم (عربي)","prenomAr"],
-                  ["Nom","nom"],["Prénom","prenom"],
-                  ["رقم التعريف الوطني","nin"],["رقم الرخصة","numPermis"],
-                  ["تاريخ انتهاء الرخصة","dateExpiration"],["الهاتف","telephone"],
-                  ["رقم التسجيل","numImmatriculation"],["الماركة","marque"],
-                  ["نوع المركبة","typeVehicule"],["سنة أول استعمال","anneeCirculation"],
-                ].map(([label,key])=>(
-                  <div key={key} style={{display:"flex",flexDirection:"column",gap:3}}>
-                    <label style={{fontSize:10,fontWeight:600,color:"#6b7280"}}>{label}</label>
-                    <input value={driverForm[key]||""} onChange={e=>setDriverForm(f=>({...f,[key]:e.target.value}))}
-                      style={{...inp,fontSize:12,padding:"7px 10px"}}/>
-                  </div>
-                ))}
-              </div>
-              <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>setDriverStep(1)}
-                  style={{flex:1,padding:10,borderRadius:8,border:"1.5px solid #d1d5db",background:"#fff",cursor:"pointer",fontSize:13}}>
-                  ← رجوع
-                </button>
-                <button onClick={addDriver}
-                  style={{flex:2,padding:10,borderRadius:8,border:"none",background:"#1a6b3c",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:13}}>
-                  ✅ إضافة السائق
-                </button>
-              </div>
-            </>}
-          </div>
-        )}
-      </div>
-
-      {/* قائمة المركبات المستقلة */}
-      <div style={{background:"#eff6ff",borderRadius:12,padding:16,marginBottom:20}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-          <h4 style={{color:BLUE,fontWeight:700,fontSize:14,margin:0}}>🚕 مركبات الشركة ({vehicles.length})</h4>
-          <button onClick={()=>{setShowVehicleForm(true);setVehicleForm(INITIAL_VEHICLE_FORM);}}
-            style={{padding:"6px 14px",borderRadius:8,border:"none",background:BLUE,color:"#fff",cursor:"pointer",fontWeight:600,fontSize:13}}>
-            + إضافة مركبة
-          </button>
-        </div>
-
-        {vehicles.length===0 ? (
-          <p style={{color:"#9ca3af",fontSize:13,textAlign:"center",margin:"8px 0"}}>لم تُضف أي مركبة بعد</p>
-        ) : (
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {vehicles.map((v,i)=>(
-              <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-                background:"#fff",borderRadius:8,padding:"10px 12px",border:"1px solid #bfdbfe"}}>
-                <div>
-                  <div style={{fontWeight:600,fontSize:14,color:BLUE}}>
-                    🚗 {v.numImmatriculation}
-                  </div>
-                  <div style={{fontSize:12,color:"#6b7280"}}>
-                    {v.marque&&`${v.marque}`}{v.modele&&` ${v.modele}`}
-                    {v.anneeCirculation&&` • ${v.anneeCirculation}`}
-                    {(v.proprietaireNom||v.proprietairePrenom)&&
-                      ` • 👤 ${v.proprietaireNom||""} ${v.proprietairePrenom||""}`}
-                  </div>
-                </div>
-                <button onClick={()=>removeVehicle(i)}
-                  style={{padding:"4px 10px",borderRadius:6,border:"1px solid #fca5a5",background:"#fef2f2",color:"#dc2626",cursor:"pointer",fontSize:12}}>
-                  حذف
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* نموذج إضافة مركبة */}
-        {showVehicleForm&&(
-          <div style={{marginTop:16,background:"#fff",borderRadius:12,padding:16,border:"2px solid #93c5fd"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-              <h5 style={{margin:0,color:BLUE,fontWeight:700,fontSize:14}}>🚗 إضافة مركبة جديدة</h5>
-              <button onClick={()=>setShowVehicleForm(false)}
-                style={{padding:"3px 10px",borderRadius:6,border:"1px solid #d1d5db",background:"#fff",cursor:"pointer",fontSize:12,color:"#6b7280"}}>
-                ✕
-              </button>
-            </div>
-
-            <UploadCarteGrise color={BLUE} onDone={(data)=>{
-              if(data) setVehicleForm(f=>({...f,...Object.fromEntries(Object.entries(data).filter(([,v])=>v!==""))}));
-            }}/>
-
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,margin:"12px 0"}}>
-              {[
-                ["رقم التسجيل *","numImmatriculation"],["الرقم السابق","numPrecedent"],
-                ["الماركة","marque"],["الطراز","modele"],
-                ["نوع المركبة","typeVehicule"],["رقم الهيكل","numSerie"],
-                ["سنة أول استعمال","anneeCirculation"],["عدد المقاعد","nbPlaces"],
-                ["اسم المالك","proprietaireNom"],["لقب المالك","proprietairePrenom"],
-              ].map(([label,key])=>(
-                <div key={key} style={{display:"flex",flexDirection:"column",gap:3}}>
-                  <label style={{fontSize:10,fontWeight:600,color:"#6b7280"}}>{label}</label>
-                  <input value={vehicleForm[key]||""} onChange={e=>setVehicleForm(f=>({...f,[key]:e.target.value}))}
-                    style={{...inp,fontSize:12,padding:"7px 10px"}}/>
-                </div>
-              ))}
-            </div>
-            <button onClick={addVehicle}
-              style={{width:"100%",padding:10,borderRadius:8,border:"none",background:BLUE,color:"#fff",cursor:"pointer",fontWeight:700,fontSize:13}}>
-              ✅ إضافة المركبة
+          {!showDeclForm&&(
+            <button
+              onClick={()=>setShowDeclForm(true)}
+              style={{padding:"8px 16px",borderRadius:8,border:"none",background:BLUE,
+                color:"#fff",cursor:"pointer",fontWeight:700,fontSize:13,whiteSpace:"nowrap"}}>
+              + إضافة تصريح
             </button>
-          </div>
+          )}
+        </div>
+
+        {/* الجدول */}
+        <DeclarationsTable declarations={declarations} onRemove={removeDeclaration} BLUE={BLUE}/>
+
+        {/* نموذج التصريح */}
+        {showDeclForm&&(
+          <DeclarationForm
+            onAdd={addDeclaration}
+            onCancel={()=>setShowDeclForm(false)}
+            BLUE={BLUE}
+          />
         )}
       </div>
 
+      {/* أخطاء */}
       {errors.length>0&&(
         <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:"10px 14px",marginBottom:12}}>
           {errors.map(e=><div key={e} style={{color:"#dc2626",fontSize:13,marginBottom:3}}>⚠️ {e}</div>)}
         </div>
       )}
+
       <button onClick={handleSubmit} disabled={saving}
         style={{width:"100%",padding:14,borderRadius:10,border:"none",
           background:saving?"#93c5fd":BLUE,color:"#fff",cursor:saving?"default":"pointer",fontWeight:700,fontSize:15}}>
@@ -1532,19 +1798,26 @@ function CompanyForm({ onBack }) {
   );
 }
 
+
 // ═══ frontend/06_seat_booklet.js ═══
 // ==================== SEAT BOOKLET FORM (دفتر المقاعد) ====================
 function SeatBookletForm({ onBack }) {
-  const [step, setStep]     = useState(0); // 0=رفع الرخصة, 1=بيانات إضافية, 2=تأكيد+طباعة
-  const [form, setForm]     = useState({...INITIAL_FORM, telephone2:""});
+  const [step, setStep]       = useState(0); // 0=رفع الرخصة, 1=بيانات, 2=تأكيد+طباعة
+  const [form, setForm]       = useState({...INITIAL_FORM, telephone2:""});
   const [preview, setPreview] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState([]);
+  const [saving, setSaving]   = useState(false);
+  const [errors, setErrors]   = useState([]);
   const [regResult, setRegResult] = useState(null);
 
   const AMBER = "#b45309";
   const inp = {width:"100%",padding:"10px 12px",border:"1.5px solid #d1d5db",
     borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit",background:"#fff"};
+  const sel = {...inp, cursor:"pointer"};
+
+  function SbLabel({children}) {
+    return <div style={{fontSize:11,fontWeight:700,color:"#92400e",background:"#fef3c7",
+      borderRadius:6,padding:"5px 10px",marginTop:18,marginBottom:8,gridColumn:"span 2"}}>{children}</div>;
+  }
 
   function validate() {
     const e = [];
@@ -1590,7 +1863,7 @@ function SeatBookletForm({ onBack }) {
         {form.nomAr} {form.prenomAr}
       </p>
       <button onClick={openCertificate} style={{padding:"14px 28px",borderRadius:10,border:"none",
-        background:AMBER,color:"#fff",cursor:"pointer",fontWeight:700,fontSize:15,marginBottom:12,
+        background:AMBER,color:"#fff",cursor:"pointer",fontWeight:700,fontSize:15,
         display:"flex",alignItems:"center",gap:8,margin:"0 auto 12px"}}>
         🖨️ طباعة شهادة التسجيل (مع QR)
       </button>
@@ -1609,6 +1882,7 @@ function SeatBookletForm({ onBack }) {
         <h3 style={{color:AMBER,fontWeight:800,fontSize:17,margin:0}}>📘 التسجيل لنيل دفتر المقاعد</h3>
       </div>
 
+      {/* ─── الخطوة 0: رفع الرخصة ─── */}
       {step===0&&<>
         <h4 style={{color:"#374151",fontWeight:700,fontSize:14,marginBottom:12}}>🪪 رفع رخصة السياقة</h4>
         <UploadStep onDone={(data,prev)=>{
@@ -1622,41 +1896,169 @@ function SeatBookletForm({ onBack }) {
         </button>
       </>}
 
+      {/* ─── الخطوة 1: البيانات الكاملة ─── */}
       {step===1&&<>
         {preview&&<img src={preview} style={{width:"100%",maxHeight:130,objectFit:"cover",
           borderRadius:10,marginBottom:14}} alt="رخصة"/>}
+
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+
+          {/* ── الهوية ── */}
+          <SbLabel>👤 بيانات الهوية</SbLabel>
+
           {[
             ["اللقب (عربي) *","nomAr"],["الاسم (عربي) *","prenomAr"],
             ["Nom","nom"],["Prénom","prenom"],
             ["تاريخ الميلاد","dateNaissance","date"],["مكان الميلاد","lieuNaissance"],
-            ["رقم التعريف الوطني (NIN) *","nin"],
-            ["رقم رخصة السياقة *","numPermis"],
-            ["تاريخ انتهاء الرخصة","dateExpiration","date"],
-            ["رقم الهاتف *","telephone","tel"],
-            ["هاتف إضافي","telephone2","tel"],
           ].map(([label,key,type="text"])=>(
             <div key={key} style={{display:"flex",flexDirection:"column",gap:4}}>
               <label style={{fontSize:11,fontWeight:600,color:"#374151"}}>{label}</label>
-              <input type={type} value={form[key]||""} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} style={inp}/>
+              <input type={type} value={form[key]||""}
+                onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} style={inp}/>
             </div>
           ))}
+
+          {/* ولاية الميلاد */}
+          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+            <label style={{fontSize:11,fontWeight:600,color:"#374151"}}>ولاية الميلاد</label>
+            <select value={form.wilayaNaissance||""}
+              onChange={e=>setForm(f=>({...f,wilayaNaissance:e.target.value}))} style={sel}>
+              <option value="">— اختر —</option>
+              {WILAYAS.map(w=><option key={w} value={w}>{w}</option>)}
+            </select>
+          </div>
+
+          {/* الجنسية */}
+          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+            <label style={{fontSize:11,fontWeight:600,color:"#374151"}}>الجنسية</label>
+            <input value={form.nationalite||"جزائري"}
+              onChange={e=>setForm(f=>({...f,nationalite:e.target.value}))} style={inp}/>
+          </div>
+
+          {/* NIN */}
+          <div style={{display:"flex",flexDirection:"column",gap:4,gridColumn:"span 2"}}>
+            <label style={{fontSize:11,fontWeight:600,color:"#374151"}}>رقم التعريف الوطني (NIN) *</label>
+            <input value={form.nin||""}
+              onChange={e=>setForm(f=>({...f,nin:e.target.value}))} style={inp}/>
+          </div>
+
+          {/* ── رخصة السياقة ── */}
+          <SbLabel>🪪 رخصة السياقة</SbLabel>
+
+          {/* رقم الرخصة */}
+          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+            <label style={{fontSize:11,fontWeight:600,color:"#374151"}}>رقم رخصة السياقة *</label>
+            <input value={form.numPermis||""}
+              onChange={e=>setForm(f=>({...f,numPermis:e.target.value}))} style={inp}/>
+          </div>
+
+          {/* تاريخ الإصدار */}
+          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+            <label style={{fontSize:11,fontWeight:600,color:"#374151"}}>تاريخ الإصدار</label>
+            <input type="date" value={form.dateDelivrance||""}
+              onChange={e=>setForm(f=>({...f,dateDelivrance:e.target.value}))} style={inp}/>
+          </div>
+
+          {/* تاريخ الانتهاء */}
+          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+            <label style={{fontSize:11,fontWeight:600,color:"#374151"}}>تاريخ انتهاء الرخصة</label>
+            <input type="date" value={form.dateExpiration||""}
+              onChange={e=>setForm(f=>({...f,dateExpiration:e.target.value}))} style={inp}/>
+          </div>
+
+          {/* مكان الإصدار */}
+          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+            <label style={{fontSize:11,fontWeight:600,color:"#374151"}}>مكان الإصدار</label>
+            <input value={form.lieuDelivrance||""}
+              onChange={e=>setForm(f=>({...f,lieuDelivrance:e.target.value}))} style={inp}/>
+          </div>
+
+          {/* ولاية الإصدار */}
+          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+            <label style={{fontSize:11,fontWeight:600,color:"#374151"}}>ولاية الإصدار</label>
+            <select value={form.wilayaDelivrance||""}
+              onChange={e=>setForm(f=>({...f,wilayaDelivrance:e.target.value}))} style={sel}>
+              <option value="">— اختر —</option>
+              {WILAYAS.map(w=><option key={w} value={w}>{w}</option>)}
+            </select>
+          </div>
+
+          {/* الفئات */}
+          <div style={{display:"flex",flexDirection:"column",gap:6,gridColumn:"span 2"}}>
+            <label style={{fontSize:11,fontWeight:600,color:"#374151"}}>فئات الرخصة</label>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              {LICENSE_CATEGORIES.map(cat=>(
+                <label key={cat} style={{display:"flex",alignItems:"center",gap:4,
+                  background:(form.categories||[]).includes(cat)?"#fef3c7":"#f9fafb",
+                  border:`1.5px solid ${(form.categories||[]).includes(cat)?AMBER:"#d1d5db"}`,
+                  borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:13,fontWeight:600,
+                  color:(form.categories||[]).includes(cat)?AMBER:"#374151"}}>
+                  <input type="checkbox" style={{display:"none"}}
+                    checked={(form.categories||[]).includes(cat)}
+                    onChange={ev=>{
+                      const cats = form.categories||[];
+                      setForm(f=>({...f,categories:ev.target.checked
+                        ?[...cats,cat]:cats.filter(c=>c!==cat)}));
+                    }}/>
+                  {cat}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* ── معلومات الاتصال ── */}
+          <SbLabel>📍 معلومات الاتصال</SbLabel>
+
+          {[
+            ["رقم الهاتف *","telephone","tel"],["هاتف إضافي","telephone2","tel"],
+          ].map(([label,key,type="text"])=>(
+            <div key={key} style={{display:"flex",flexDirection:"column",gap:4}}>
+              <label style={{fontSize:11,fontWeight:600,color:"#374151"}}>{label}</label>
+              <input type={type} value={form[key]||""}
+                onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} style={inp}/>
+            </div>
+          ))}
+
+          {/* العنوان */}
           <div style={{display:"flex",flexDirection:"column",gap:4,gridColumn:"span 2"}}>
             <label style={{fontSize:11,fontWeight:600,color:"#374151"}}>العنوان *</label>
-            <input value={form.adresse||""} onChange={e=>setForm(f=>({...f,adresse:e.target.value}))} style={inp}/>
+            <input value={form.adresse||""}
+              onChange={e=>setForm(f=>({...f,adresse:e.target.value}))} style={inp}/>
           </div>
-        </div>
+
+          {/* البلدية */}
+          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+            <label style={{fontSize:11,fontWeight:600,color:"#374151"}}>البلدية</label>
+            <input value={form.commune||""}
+              onChange={e=>setForm(f=>({...f,commune:e.target.value}))} style={inp}/>
+          </div>
+
+          {/* الولاية */}
+          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+            <label style={{fontSize:11,fontWeight:600,color:"#374151"}}>الولاية</label>
+            <select value={form.wilaya||""}
+              onChange={e=>setForm(f=>({...f,wilaya:e.target.value}))} style={sel}>
+              <option value="">— اختر —</option>
+              {WILAYAS.map(w=><option key={w} value={w}>{w}</option>)}
+            </select>
+          </div>
+
+        </div>{/* end grid */}
 
         {errors.length>0&&(
-          <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:"10px 14px",marginBottom:14}}>
+          <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,
+            padding:"10px 14px",marginBottom:14}}>
             {errors.map(e=><div key={e} style={{color:"#dc2626",fontSize:13,marginBottom:3}}>⚠️ {e}</div>)}
           </div>
         )}
 
         <div style={{display:"flex",gap:10}}>
-          <button onClick={()=>setStep(0)} style={{flex:1,padding:13,borderRadius:10,border:"1.5px solid #d1d5db",background:"#fff",cursor:"pointer",fontWeight:600,color:"#374151"}}>← رجوع</button>
-          <button onClick={handleSubmit} disabled={saving} style={{flex:2,padding:13,borderRadius:10,border:"none",
-            background:saving?"#fcd34d":AMBER,color:"#fff",cursor:saving?"default":"pointer",fontWeight:700,fontSize:15}}>
+          <button onClick={()=>setStep(0)} style={{flex:1,padding:13,borderRadius:10,
+            border:"1.5px solid #d1d5db",background:"#fff",cursor:"pointer",fontWeight:600,
+            color:"#374151"}}>← رجوع</button>
+          <button onClick={handleSubmit} disabled={saving} style={{flex:2,padding:13,borderRadius:10,
+            border:"none",background:saving?"#fcd34d":AMBER,color:"#fff",
+            cursor:saving?"default":"pointer",fontWeight:700,fontSize:15}}>
             {saving?"جارٍ الحفظ...":"✅ تأكيد التسجيل وطباعة الشهادة"}
           </button>
         </div>
@@ -1675,20 +2077,24 @@ const INITIAL_HERITAGE_FORM = {
 };
 
 function HeritageLicenseForm({ onBack }) {
-  const [step, setStep]     = useState(0); // 0=OCR بطاقة التعريف, 1=بيانات كاملة, 2=تأكيد
-  const [form, setForm]     = useState(INITIAL_HERITAGE_FORM);
-  const [preview, setPreview] = useState(null);
+  // الخطوات: 0=OCR بطاقة التعريف, 1=OCR القرار, 2=مراجعة البيانات, 3=تأكيد
+  const [step, setStep]         = useState(0);
+  const [form, setForm]         = useState(INITIAL_HERITAGE_FORM);
+  const [previewId, setPreviewId]   = useState(null);
+  const [previewDec, setPreviewDec] = useState(null);
   const [ocrLoading, setOcrLoading] = useState(false);
-  const [ocrErr, setOcrErr] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState([]);
-  const [saved, setSaved]   = useState(false);
-  const fileRef = useRef();
+  const [ocrErr, setOcrErr]         = useState("");
+  const [saving, setSaving]         = useState(false);
+  const [errors, setErrors]         = useState([]);
+  const [saved, setSaved]           = useState(false);
+  const fileRefId  = useRef();
+  const fileRefDec = useRef();
 
   const PURPLE = "#7c3aed";
   const inp = {width:"100%",padding:"10px 12px",border:"1.5px solid #d1d5db",
     borderRadius:8,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit",background:"#fff"};
 
+  // OCR بطاقة التعريف الوطنية
   async function handleIdCard(file) {
     if (!file) return;
     setOcrErr(""); setOcrLoading(true);
@@ -1696,7 +2102,7 @@ function HeritageLicenseForm({ onBack }) {
     reader.onload = async (e) => {
       const b64  = e.target.result.split(",")[1];
       const mime = file.type || "image/jpeg";
-      setPreview(e.target.result);
+      setPreviewId(e.target.result);
       try {
         const res = await fetch(`${API_BASE}/ocr-id-card`, {
           method:"POST", headers:{"Content-Type":"application/json"},
@@ -1705,13 +2111,39 @@ function HeritageLicenseForm({ onBack }) {
         const d = await res.json();
         if (d.success) {
           setForm(f=>({...f,...Object.fromEntries(Object.entries(d.data).filter(([,v])=>v!==""))}));
-          setStep(1);
         } else {
-          setOcrErr(d.error || "فشل OCR — راجع البيانات يدوياً");
-          setStep(1);
+          setOcrErr(d.error || "فشل OCR بطاقة التعريف");
         }
-      } catch(err) { setOcrErr("خطأ في الاتصال"); setStep(1); }
+      } catch(err) { setOcrErr("خطأ في الاتصال"); }
       setOcrLoading(false);
+      setStep(1);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // OCR نسخة القرار
+  async function handleDecision(file) {
+    if (!file) return;
+    setOcrErr(""); setOcrLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const b64  = e.target.result.split(",")[1];
+      const mime = file.type || "image/jpeg";
+      setPreviewDec(e.target.result);
+      try {
+        const res = await fetch(`${API_BASE}/ocr-decision`, {
+          method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({image_base64: b64, mime_type: mime})
+        });
+        const d = await res.json();
+        if (d.success) {
+          setForm(f=>({...f,...Object.fromEntries(Object.entries(d.data).filter(([,v])=>v!==""))}));
+        } else {
+          setOcrErr(d.error || "فشل OCR القرار");
+        }
+      } catch(err) { setOcrErr("خطأ في الاتصال"); }
+      setOcrLoading(false);
+      setStep(2);
     };
     reader.readAsDataURL(file);
   }
@@ -1773,7 +2205,7 @@ function HeritageLicenseForm({ onBack }) {
           <p style={{color:"#6b7280",fontSize:13,marginBottom:14,textAlign:"center"}}>
             ارفع صورة بطاقة التعريف الوطنية لاستخراج البيانات تلقائياً
           </p>
-          <div onClick={()=>!ocrLoading&&fileRef.current.click()}
+          <div onClick={()=>!ocrLoading&&fileRefId.current.click()}
             onDragOver={e=>e.preventDefault()}
             onDrop={e=>{e.preventDefault();handleIdCard(e.dataTransfer.files[0]);}}
             style={{border:`2px dashed ${PURPLE}`,borderRadius:14,padding:"30px 16px",
@@ -1785,8 +2217,8 @@ function HeritageLicenseForm({ onBack }) {
                   borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 10px"}}/>
                 جاري استخراج البيانات...
               </div>
-            ) : preview ? (
-              <img src={preview} style={{maxHeight:150,maxWidth:"100%",borderRadius:8}} alt="بطاقة تعريف"/>
+            ) : previewId ? (
+              <img src={previewId} style={{maxHeight:150,maxWidth:"100%",borderRadius:8}} alt="بطاقة تعريف"/>
             ) : (
               <div style={{color:"#9ca3af",fontSize:14}}>
                 <div style={{fontSize:40,marginBottom:8}}>🪪</div>
@@ -1794,7 +2226,7 @@ function HeritageLicenseForm({ onBack }) {
               </div>
             )}
           </div>
-          <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}}
+          <input ref={fileRefId} type="file" accept="image/*" style={{display:"none"}}
             onChange={e=>handleIdCard(e.target.files[0])}/>
           {ocrErr&&<div style={{color:"#dc2626",fontSize:12,marginBottom:8}}>⚠️ {ocrErr}</div>}
           <button onClick={()=>setStep(1)} style={{width:"100%",marginTop:8,padding:10,
