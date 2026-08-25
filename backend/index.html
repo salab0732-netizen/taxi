@@ -721,8 +721,10 @@ function AdminPanel({ onClose }) {
                   onMouseEnter={e=>e.currentTarget.style.background="#f0fdf4"}
                   onMouseLeave={e=>e.currentTarget.style.background=i%2?"#fafafa":"#fff"}>
                   <td style={tdStyle()}>{r.id}</td>
-                  <td style={{...tdStyle(),fontWeight:600}}>{r.nom_ar} {r.prenom_ar}</td>
-                  <td style={tdStyle()}>{r.nom_fr} {r.prenom_fr}</td>
+                  <td style={{...tdStyle(),fontWeight:600}}>
+                    <div>{r.nom_ar} {r.prenom_ar}</div>
+                    {(r.nom_fr||r.prenom_fr)&&<div style={{fontSize:11,color:"#6b7280",fontStyle:"italic",marginTop:2}}>{r.nom_fr} {r.prenom_fr}</div>}
+                  </td>
                   <td style={tdStyle()}>{r.date_naissance}</td>
                   <td style={tdStyle()}>{r.lieu_naissance}</td>
                   <td style={{...tdStyle(),fontFamily:"monospace"}}>{r.nin}</td>
@@ -831,7 +833,7 @@ function AdminPanel({ onClose }) {
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
             <thead>
               <tr>
-                {["#","رقم التسجيل","اللقب والاسم (عربي)","Nom Prénom",
+                {["#","رقم التسجيل","الاسم واللقب",
                   "تاريخ الميلاد","مكان الميلاد","NIN","رقم الرخصة",
                   "تاريخ انتهاء الرخصة","الهاتف","العنوان","الحالة","تاريخ التسجيل",""].map(h=>(
                   <th key={h} style={thStyle("#b45309")}>{h}</th>
