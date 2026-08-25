@@ -850,8 +850,10 @@ function AdminPanel({ onClose }) {
                   onMouseLeave={e=>e.currentTarget.style.background=i%2?"#fafafa":"#fff"}>
                   <td style={tdStyle()}>{r.id}</td>
                   <td style={{...tdStyle(),fontWeight:700,color:"#b45309",fontFamily:"monospace"}}>{r.registration_number}</td>
-                  <td style={{...tdStyle(),fontWeight:600}}>{r.nom_ar} {r.prenom_ar}</td>
-                  <td style={tdStyle()}>{r.nom_fr} {r.prenom_fr}</td>
+                  <td style={{...tdStyle(),fontWeight:600}}>{r.nom_ar}</td>
+                  <td style={tdStyle()}>{r.prenom_ar}</td>
+                  <td style={{...tdStyle(),fontStyle:"italic"}}>{r.nom_fr}</td>
+                  <td style={{...tdStyle(),fontStyle:"italic"}}>{r.prenom_fr}</td>
                   <td style={tdStyle()}>{r.date_naissance}</td>
                   <td style={tdStyle()}>{r.lieu_naissance}</td>
                   <td style={{...tdStyle(),fontFamily:"monospace"}}>{r.nin}</td>
