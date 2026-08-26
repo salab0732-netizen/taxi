@@ -1,12 +1,70 @@
+// ==================== ADMIN PASSWORD MODAL ====================
+function AdminPasswordModal({ onSuccess, onClose }) {
+  const [pw, setPw]           = useState("");
+  const [err, setErr]         = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleCheck() {
+    if (!pw.trim()) { setErr("أدخل كلمة المرور"); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/login`, {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({password: pw})
+      });
+      const d = await res.json();
+      if (d.success) { onSuccess(); }
+      else { setErr("كلمة المرور غير صحيحة"); }
+    } catch(e) { setErr("خطأ في الاتصال بالخادم"); }
+    setLoading(false);
+  }
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:3000,
+      display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:"#fff",borderRadius:18,padding:"32px 28px",maxWidth:360,width:"100%",
+        boxShadow:"0 8px 40px rgba(0,0,0,.18)"}} dir="rtl">
+        <div style={{textAlign:"center",marginBottom:20}}>
+          <div style={{fontSize:40,marginBottom:8}}>🔐</div>
+          <h3 style={{margin:0,color:"#1a6b3c",fontSize:17,fontWeight:800}}>لوحة الإدارة</h3>
+          <p style={{color:"#6b7280",fontSize:13,margin:"6px 0 0"}}>أدخل كلمة المرور للمتابعة</p>
+        </div>
+        <input
+          type="password" value={pw}
+          onChange={e=>{setPw(e.target.value);setErr("");}}
+          onKeyDown={e=>e.key==="Enter"&&handleCheck()}
+          placeholder="كلمة المرور" autoFocus
+          style={{width:"100%",padding:"12px 14px",
+            border:`1.5px solid ${err?"#dc2626":"#d1d5db"}`,
+            borderRadius:10,fontSize:15,outline:"none",fontFamily:"inherit",
+            textAlign:"center",letterSpacing:4,marginBottom:8}}
+        />
+        {err&&<div style={{color:"#dc2626",fontSize:13,marginBottom:10,textAlign:"center"}}>⚠️ {err}</div>}
+        <div style={{display:"flex",gap:10,marginTop:8}}>
+          <button onClick={onClose} style={{flex:1,padding:12,borderRadius:10,
+            border:"1.5px solid #d1d5db",background:"#fff",cursor:"pointer",
+            fontWeight:600,color:"#374151",fontSize:14}}>إلغاء</button>
+          <button onClick={handleCheck} disabled={loading} style={{flex:2,padding:12,borderRadius:10,
+            border:"none",background:loading?"#86efac":"#1a6b3c",color:"#fff",
+            cursor:loading?"default":"pointer",fontWeight:700,fontSize:14}}>
+            {loading?"جارٍ التحقق...":"دخول ←"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ==================== MAIN APP ====================
 function App() {
-  const [page, setPage]           = useState("landing"); // landing | driver | company
+  const [page, setPage]           = useState("landing");
   const [step, setStep]           = useState(0);
   const [form, setForm]           = useState(INITIAL_FORM);
   const [preview, setPreview]     = useState(null);
   const [errors, setErrors]       = useState([]);
   const [saving, setSaving]       = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [showAdminPw, setShowAdminPw] = useState(false);
 
   function reset() { setStep(0); setForm(INITIAL_FORM); setPreview(null); setErrors([]); }
 
@@ -75,7 +133,7 @@ function App() {
                 🏠 الرئيسية
               </button>
             )}
-            <button onClick={()=>setShowAdmin(true)} style={{padding:"6px 13px",borderRadius:8,border:"1px solid rgba(255,255,255,.3)",background:"rgba(255,255,255,.1)",color:"#fff",cursor:"pointer",fontSize:12}}>
+            <button onClick={()=>setShowAdminPw(true)} style={{padding:"6px 13px",borderRadius:8,border:"1px solid rgba(255,255,255,.3)",background:"rgba(255,255,255,.1)",color:"#fff",cursor:"pointer",fontSize:12}}>
               🗂️ الإدارة
             </button>
           </div>
@@ -144,6 +202,12 @@ function App() {
         </p>
       </div>
 
+      {showAdminPw&&(
+        <AdminPasswordModal
+          onSuccess={()=>{ setShowAdminPw(false); setShowAdmin(true); }}
+          onClose={()=>setShowAdminPw(false)}
+        />
+      )}
       {showAdmin&&<AdminPanel onClose={()=>setShowAdmin(false)}/>}
     </div>
   );
