@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory, redirect
+from flask import redirect as _redirect
 from flask_cors import CORS
 import hashlib, secrets, urllib.parse
 import requests as req_lib
@@ -224,7 +225,9 @@ def google_login():
         "access_type":   "offline",
         "prompt":        "select_account",
         # نوع الحساب المطلوب (سائق / شركة) يُمرَّر عبر state ويعود في الـ callback
-        "state":         "company" if request.args.get("role") == "company" else "driver",
+        # «.app» ← الدخول من تطبيق الهاتف (متصفح الهاتف ثم العودة إلى التطبيق)
+        "state":         ("company" if request.args.get("role") == "company" else "driver")
+                         + (".app" if request.args.get("app") == "1" else ""),
     }
     url = GOOGLE_AUTH_URL + "?" + urllib.parse.urlencode(params)
     return redirect(url)
@@ -234,7 +237,28 @@ def google_login():
 def google_callback():
     code  = request.args.get("code")
     error = request.args.get("error")
-    want  = "company" if request.args.get("state") == "company" else "driver"
+    state = request.args.get("state", "")
+    want  = "company" if state.split(".")[0] == "company" else "driver"
+    from_app = state.endswith(".app")
+
+    def redirect(url):
+        # تطبيق الهاتف: Google يمنع الدخول داخل WebView، فيتم في متصفح الهاتف
+        # ثم تُعاد النتيجة (نفس المعاملات) إلى التطبيق عبر رابط intent
+        if not from_app:
+            return _redirect(url)
+        query = url.split("?", 1)[1] if "?" in url else ""
+        intent = f"intent://auth?{query}#Intent;scheme=taxiapp;package=dz.taxi.mobile;end"
+        return (
+            "<!DOCTYPE html><html dir='rtl' lang='ar'><head><meta charset='utf-8'>"
+            "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+            "<title>العودة إلى التطبيق</title></head>"
+            "<body style='font-family:sans-serif;text-align:center;padding:40px 16px'>"
+            "<h3>🚕 تمّ — العودة إلى تطبيق سيارات الأجرة</h3>"
+            f"<p><a href=\"{intent}\" style='display:inline-block;padding:14px 28px;background:#0d5c4f;"
+            "color:#fff;border-radius:10px;text-decoration:none;font-size:18px'>فتح التطبيق</a></p>"
+            f"<script>location.href={_json.dumps(intent)};</script>"
+            "</body></html>"
+        )
 
     if error or not code:
         return redirect(FRONTEND_URL + f"/?google_error=cancelled&want={want}")

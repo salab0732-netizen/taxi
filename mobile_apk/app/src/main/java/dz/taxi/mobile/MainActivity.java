@@ -52,7 +52,7 @@ import java.util.ArrayList;
  */
 public class MainActivity extends Activity {
     private static final String PREFS = "taxi", KEY_URL = "server_url";
-    private static final String VERSION = "1.0";
+    private static final String VERSION = "1.1";
     // ngrok المجاني يعرض صفحة تحذير لكل متصفح؛ وكيل مستخدم غير متصفّحي يتجاوزها
     private static final String UA_TAG = "TaxiApp/" + VERSION + " (Android)";
     private static final int PICK_FILE = 41;
@@ -73,6 +73,37 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(Color.parseColor("#052E28"));
         String url = prefs.getString(KEY_URL, "");
         if (url.isEmpty()) showSetup(null); else showWeb(url);
+        handleAuth(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        handleAuth(intent);
+    }
+
+    /** نتيجة الدخول بحساب Google (taxiapp://auth?token=…) ← نفس معاملات الموقع، والواجهة تكمل الدخول. */
+    private void handleAuth(Intent intent) {
+        Uri u = intent == null ? null : intent.getData();
+        if (u == null || !"taxiapp".equals(u.getScheme())) return;
+        String url = prefs.getString(KEY_URL, "");
+        if (url.isEmpty()) return;
+        if (web == null) showWeb(url);
+        closePopups();
+        String q = u.getEncodedQuery();
+        web.loadUrl(base + "/" + (q == null ? "" : "?" + q));
+        intent.setData(null);
+    }
+
+    /** Google يمنع الدخول داخل WebView ← متصفح الهاتف، ثم يعود إلى التطبيق. */
+    private void googleLogin(Uri u) {
+        String url = u.toString() + (u.getQuery() == null ? "?" : "&") + "app=1";
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+            Toast.makeText(this, "أكمل الدخول في المتصفح ثم تعود إلى التطبيق تلقائياً", Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "لا يوجد متصفح على الهاتف", Toast.LENGTH_LONG).show();
+        }
     }
 
     // ── شاشة عنوان الحاسوب ─────────────────────────────────
@@ -220,15 +251,13 @@ public class MainActivity extends Activity {
         public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest req) {
             Uri u = req.getUrl();
             String url = u.toString();
-            if (url.startsWith(base) || url.startsWith("about:") || url.startsWith("blob:") || url.startsWith("data:")) return false;
-            String host = u.getHost() == null ? "" : u.getHost();
-            if (host.endsWith("accounts.google.com")) {        // Google يمنع تسجيل الدخول داخل WebView
-                new AlertDialog.Builder(MainActivity.this)
-                        .setMessage("الدخول بحساب Google غير متاح داخل التطبيق.\nادخل باسم المستخدم وكلمة السر.")
-                        .setPositiveButton("حسناً", null).show();
+            if (url.startsWith(base) && "/api/auth/google".equals(u.getPath())) {
+                googleLogin(u);
                 if (popup) closePopup(v);
                 return true;
             }
+            if (url.startsWith(base) || url.startsWith("about:") || url.startsWith("blob:") || url.startsWith("data:")) return false;
+            String host = u.getHost() == null ? "" : u.getHost();
             try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception ignored) { }  // روابط خارجية ← المتصفح
             if (popup && !v.canGoBack()) closePopup(v);
             return true;
