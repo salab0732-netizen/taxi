@@ -409,7 +409,19 @@ export const reqMeta = t => REQ_META[t] || { icon: "fileText", tone: "neutral" }
 export async function downloadFile(url, token, filename) {
   const res = await fetch(url, { headers: { "X-Token": token } });
   if (!res.ok) throw new Error("HTTP " + res.status);
-  const href = URL.createObjectURL(await res.blob());
+  const blob = await res.blob();
+  // تطبيق الهاتف (WebView) لا يدعم تنزيل blob ← يُمرَّر الملف إلى التطبيق
+  if (window.TaxiApp?.saveFile) {
+    const b64 = await new Promise((ok, ko) => {
+      const r = new FileReader();
+      r.onload = () => ok(String(r.result).split(",")[1] || "");
+      r.onerror = ko;
+      r.readAsDataURL(blob);
+    });
+    window.TaxiApp.saveFile(filename, blob.type || "application/octet-stream", b64);
+    return;
+  }
+  const href = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = href; a.download = filename; a.click();
   URL.revokeObjectURL(href);
