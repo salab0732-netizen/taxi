@@ -1,0 +1,9 @@
+{
+  "GOOGLE_CLIENT_ID": "",
+  "GOOGLE_CLIENT_SECRET": "",
+  "GOOGLE_REDIRECT_URI": "https://YOUR-DOMAIN/api/auth/google/callback",
+  "FRONTEND_URL": "https://YOUR-DOMAIN",
+  "SMS_USERNAME": "",
+  "SMS_PASSWORD": "",
+  "SMS_SIM": 1
+}

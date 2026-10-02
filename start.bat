@@ -1,5 +1,21 @@
 @echo off
-title Taxi Registration App
-cd /d "%~dp0"
-python run.py
-pause
+title نظام إدارة سيارات الأجرة
+color 0A
+echo.
+echo  ========================================
+echo   نظام إدارة سيارات الأجرة
+echo  ========================================
+echo.
+
+echo  [1/3] تشغيل Backend...
+start "Backend - Flask" cmd /k "cd /d F:\taxi-main\backend_new && python app.py"
+timeout /t 3 /nobreak > nul
+
+echo  [2/3] تشغيل Frontend...
+start "Frontend - Vite" cmd /k "cd /d F:\taxi-main\frontend_new && npm run dev"
+timeout /t 4 /nobreak > nul
+
+echo  [3/3] تشغيل ngrok...
+python F:\taxi-main\run_new.py
+
+exit

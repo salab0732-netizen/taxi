@@ -1,18 +1,36 @@
-# Secrets - never commit
-backend/gemini_key.txt
+# ── أسرار — لا تُرفع أبداً ──
+github_token.txt
+backend_new/config.local.json
+backend_new/gemini_key
+backend_new/claude_key
+**/gemini_key*
+**/claude_key*
 
-# Local database & uploaded images
-backend/registrations.db
-backend/images/
+# ── بيانات شخصية: قواعد البيانات والوثائق المرفوعة والسجلات ──
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+backend_new/images/
+logs/
+*.xlsx
+!backend_new/templates/*.xlsx
+~$*
 
-# Runtime/local files
+# ── نسخ احتياطية ومؤقتة ──
+*.bak*
+*.v2
+*.v3
+_to_delete/
+_backup*/
+backend_new/_bak_*/
+.fuse_hidden*
 current-url.txt
 
-# Python
+# ── Python / Node ──
 __pycache__/
 *.pyc
 .venv/
 venv/
-
-# Node (in case frontend is ever built)
 node_modules/
+dist/
