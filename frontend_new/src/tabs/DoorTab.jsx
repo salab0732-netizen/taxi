@@ -1205,9 +1205,9 @@ export default function DoorTab({ token, profile, onSaved }) {
             <div style={{fontSize:17,fontWeight:700,color:"var(--ink)"}}>{door.ben_prenom_ar||""} {door.ben_nom_ar||""}</div>
             <div className="row-wrap" style={{gap:6,marginTop:6}}>
               {door.sifa&&<Badge tone="gold" size="sm">{String(door.sifa).replace(/_/g," ")}</Badge>}
-              <Badge tone={isBeneficiary?"violet":"info"} size="sm">{isBeneficiary?"يستغلها بنفسه":"مكتري"}</Badge>
+              {isBeneficiary && <Badge tone="violet" size="sm">يستغلها بنفسه</Badge>}
               {door.exploitation_commune&&<Badge size="sm" icon="mapPin">{door.exploitation_commune}</Badge>}
-              {door.decision_number&&<Badge size="sm" icon="fileText">قرار {door.decision_number}</Badge>}
+              {door.decision_number&&<Badge size="sm" icon="fileText">قرار ولائي رقم: {door.decision_number} — مؤرخ في: {fmtDate(door.decision_date)||"......"}</Badge>}
             </div>
           </div>
           {!isBeneficiary&&(rental.id

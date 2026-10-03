@@ -405,6 +405,8 @@ export const REQ_META = {
   "تجديد_رخصة_سائق": { icon: "idCard", tone: "brand" },
   "تجديد_رخصة_مناوب": { icon: "idCard", tone: "brand" },
   "تجديد_وثائق_استغلال": { icon: "refresh", tone: "brand" },
+  "شهادة_إدارية": { icon: "stamp", tone: "gold" },
+  "شهادة_إدارية_مناوب": { icon: "stamp", tone: "gold" },
 };
 export const reqMeta = t => REQ_META[t] || { icon: "fileText", tone: "neutral" };
 

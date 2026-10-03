@@ -39,7 +39,7 @@ export function Input({ label, required, children, hint }) {
 export const INP = {
   width: "100%", height: 44, padding: "0 12px", border: "2px solid var(--field-border)",
   borderRadius: 10, fontSize: 15, fontWeight: 600, outline: "none", boxSizing: "border-box",
-  fontFamily: "inherit", background: "#fff", color: "var(--ink)", boxShadow: "var(--sh-xs)",
+  fontFamily: "inherit", background: "var(--surface)", color: "var(--ink)", boxShadow: "var(--sh-xs)",
 };
 
 export function SaveBtn({ onClick, loading, label = "حفظ", icon = "save", disabled }) {

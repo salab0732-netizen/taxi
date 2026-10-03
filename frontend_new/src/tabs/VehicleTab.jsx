@@ -291,7 +291,7 @@ export default function VehicleTab({ token, profile, onSaved }) {
         <Card title="المركبة الحالية" subtitle="بيانات البطاقة الرمادية المسجّلة في ملفك" icon="car" tone="info"
           actions={<Button variant="secondary" size="sm" icon="repeat" onClick={askChange}>تغيير المركبة</Button>}>
           <div className="row" style={{ gap: 16, marginBottom: 18, flexWrap: "wrap" }}>
-            <div style={{ border: "2px solid var(--ink)", borderRadius: 8, padding: "6px 16px", fontFamily: "var(--mono)", fontWeight: 700, fontSize: 20, letterSpacing: ".06em", background: "#fff" }} className="ltr">
+            <div style={{ border: "2.5px solid #111827", borderRadius: 8, padding: "6px 16px", fontFamily: "var(--mono)", fontWeight: 800, fontSize: 20, letterSpacing: ".06em", background: "#fff", color: "#111827", boxShadow: "inset 0 0 0 2px #fff, 0 2px 8px rgba(0,0,0,.25)" }} className="ltr">
               {veh.num_immatriculation || "—"}
             </div>
             <div>

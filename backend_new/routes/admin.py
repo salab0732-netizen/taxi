@@ -59,6 +59,10 @@ def get_all_requests(account):
     page     = int(request.args.get("page", 1))
     per_page = 20
 
+    from routes.requests import _ensure_bump_cols
+    with get_db() as _c:
+        _ensure_bump_cols(_c)
+
     query = """
         SELECT r.*, d.nom_ar, d.prenom_ar, d.nin, d.telephone,
                door.door_number, acc.username
@@ -93,7 +97,7 @@ def get_all_requests(account):
         s = f"%{search}%"
         count_params += [s, s, s, s]
 
-    query += " ORDER BY r.created_at DESC LIMIT ? OFFSET ?"
+    query += " ORDER BY COALESCE(r.bumped_at, r.created_at) DESC, r.id DESC LIMIT ? OFFSET ?"
     params += [per_page, (page - 1) * per_page]
 
     with get_db() as conn:
@@ -144,7 +148,7 @@ def update_request(account, req_id):
         if new_statut == "مقبول" and r.get("statut") == "مقبول":
             return jsonify({"error": "هذا الطلب مقبول مسبقاً"}), 400
 
-        if new_statut == "مقبول" and r["request_type"] not in ("توقف_مؤقت", "توقف_نهائي", "استئناف"):
+        if new_statut == "مقبول" and r["request_type"] not in ("توقف_مؤقت", "توقف_نهائي", "استئناف", "شهادة_إدارية", "شهادة_إدارية_مناوب"):
             d = conn.execute("SELECT statut FROM drivers WHERE id=?", (driver_id,)).fetchone()
             if d and d["statut"] in ("توقف_مؤقت", "توقف_نهائي"):
                 return jsonify({"error": f"السائق في حالة «{d['statut'].replace('_',' ')}» — لا يمكن قبول هذا الطلب"}), 400

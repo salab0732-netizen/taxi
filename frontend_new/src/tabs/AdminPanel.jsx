@@ -291,6 +291,9 @@ function RequestCard({ req, onUpdate, token }) {
 
   const canPrintLicense = req.statut === "مقبول" && LICENSE_REQUEST_TYPES.includes(req.request_type);
   const canPrintDeputyPermit = req.statut === "مقبول" && DEPUTY_PERMIT_TYPES.includes(req.request_type);
+  const isCertReq = req.request_type === "شهادة_إدارية" || req.request_type === "شهادة_إدارية_مناوب";
+  let rdata = {}; try { rdata = JSON.parse(req.request_data || "{}"); } catch { /* */ }
+  const [certOpen, setCertOpen] = useState(false);
 
   return (
     <div className={`req-card ${expanded ? "open" : ""}`}>
@@ -300,6 +303,11 @@ function RequestCard({ req, onUpdate, token }) {
           <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
             <span className="cell-title">{REQUEST_TYPES[req.request_type] || req.request_type || "طلب"}</span>
             <StatusBadge statut={req.statut} size="sm"/>
+            {req.repeat_count > 0 && open && (
+              <Badge tone="warning" size="sm" icon="bell" title={`آخر تذكير: ${(req.bumped_at || "").slice(0, 16)}`}>
+                تذكير{req.repeat_count > 1 ? ` ×${req.repeat_count}` : ""}
+              </Badge>
+            )}
           </div>
           <div className="cell-sub" style={{ marginTop: 2 }}>
             {name || req.username} · <span className="ltr mono">{req.request_number || req.id}</span>
@@ -314,6 +322,19 @@ function RequestCard({ req, onUpdate, token }) {
         {canPrintDeputyPermit && (
           <Button size="sm" variant="violet-soft" icon="printer" onClick={e => { e.stopPropagation(); openPrint(`/api/admin/print/deputy-permit/${req.driver_id}?token=${token}`); }}>
             <span className="hide-mobile">رخصة السائق الإضافي</span></Button>
+        )}
+        {isCertReq && req.statut !== "مرفوض" && req.statut !== "ملغى" && (
+          <Button size="sm" variant="warning-soft" icon="stamp" onClick={e => { e.stopPropagation(); setCertOpen(true); }}>
+            <span className="hide-mobile">تحرير الشهادة</span></Button>
+        )}
+        {certOpen && (
+          <span onClick={e => e.stopPropagation()}>
+            <WorkCertDialog token={token}
+              driverId={req.request_type === "شهادة_إدارية" ? req.driver_id : undefined}
+              nin={req.request_type === "شهادة_إدارية_مناوب" ? rdata.deputy_nin : undefined}
+              title={req.request_type === "شهادة_إدارية_مناوب" ? `الشهادة الإدارية — ${rdata.deputy_name || "السائق الإضافي"}` : "الشهادة الإدارية — السائق"}
+              onClose={() => setCertOpen(false)}/>
+          </span>
         )}
         <Icon name={expanded ? "chevronUp" : "chevronDown"} size={18} style={{ color: "var(--subtle)" }}/>
       </div>
@@ -339,6 +360,11 @@ function RequestCard({ req, onUpdate, token }) {
                 <Button variant="secondary" size="sm" icon="history" onClick={() => openPrint(`/api/admin/print/history/${req.driver_id || req.id}?token=${token}`)}>الشهادة التاريخية</Button>
               </div>
               {req.notes && <Alert tone="neutral" icon="info" title="ملاحظات السائق">{req.notes}</Alert>}
+              {isCertReq && (
+                <Alert tone="warning" icon="stamp" title={req.request_type === "شهادة_إدارية_مناوب" ? `المعني: ${rdata.deputy_name || "السائق الإضافي"}` : "المعني: صاحب الطلب"}>
+                  الغرض: {rdata.purpose || "غير محدّد"} — اضغط «تحرير الشهادة» لإعدادها وطباعتها، ثم اقبل الطلب.
+                </Alert>
+              )}
             </div>
           </div>
 
@@ -564,7 +590,8 @@ function DriverDetail({ d, detail, today, token, permisExpired, depPermisExpired
             <>
               <div className="section-title" style={{ marginTop: 16 }}>آخر الطلبات</div>
               <div className="list">
-                {detail.requests.slice(0, 5).map(r => (
+                {[...detail.requests.filter(r => ["جديد", "قيد_المعالجة"].includes(r.statut)),
+                   ...detail.requests.filter(r => !["جديد", "قيد_المعالجة"].includes(r.statut)).slice(0, 5)].map(r => (
                   <div key={r.id} className="list-item" style={{ padding: "8px 0" }}>
                     <span style={{ flex: 1, fontSize: 13 }}>{REQUEST_TYPES[r.request_type] || r.request_type}</span>
                     <StatusBadge statut={r.statut} size="sm"/>

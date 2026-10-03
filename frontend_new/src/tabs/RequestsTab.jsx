@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { api, ACTIVITY_LABELS, ACTIVITY_TYPES } from "../api.js";
 import ResumeRequestForm from "./ResumeRequestForm.jsx";
-import { Card, Alert, Button, Badge, StatusBadge, ActionTile, Select, TextArea, Field, EmptyState, reqMeta, fmtDate, promptDialog } from "../ui/kit.jsx";
+import { Card, Alert, Button, Badge, StatusBadge, ActionTile, Select, TextArea, Field, EmptyState, reqMeta, fmtDate, promptDialog, toast } from "../ui/kit.jsx";
 import Icon from "../ui/Icon.jsx";
 
 const COLOR    = "#125950";
@@ -39,18 +39,27 @@ export default function RequestsTab({ token, profile, onSaved }) {
   function setE(k, v) { setError(p => ({ ...p, [k]: v })); }
 
   // طلب شهادة إدارية: يُكتب الغرض في الطلب (اختياري — يُترك فارغاً ليُكتب باليد)
-  async function printCert(url) {
+  async function printCert(url, reqType) {
     const purpose = await promptDialog({ title: "طلب شهادة إدارية", icon: "fileText", confirmLabel: "طباعة الطلب", confirmIcon: "printer",
       label: "الغرض من الشهادة (اختياري)", placeholder: "مثال: استكمال ملف إداري لدى ...",
       message: "يُطبع طلب خطّي باسمك موجّه إلى السيد مدير النقل. اكتب الغرض أو اتركه فارغاً لكتابته باليد." });
     if (purpose === null) return;
-    window.open(url + (purpose.trim() ? "&purpose=" + encodeURIComponent(purpose.trim()) : ""), "_blank");
+    const w = window.open("", "_blank");
+    // يُسجَّل الطلب لدى الإدارة ثم يُطبع
+    const r = await api.submitRequest(token, { request_type: reqType, purpose: purpose.trim() });
+    if (r.error) { if (w) w.close(); toast.error(r.error); return; }
+    toast.success(`تم تسجيل طلب الشهادة رقم ${r.request_number} — في انتظار الإدارة`);
+    api.getRequests(token).then(res => setRequests(res.requests || []));
+    if (onSaved) onSaved();
+    const u = url + (purpose.trim() ? "&purpose=" + encodeURIComponent(purpose.trim()) : "");
+    if (w) w.location.href = u; else window.open(u, "_blank");
   }
 
   async function submitAndPrint(key, reqData, printFn) {
     setL(key, true); setE(key, ""); setS(key, "");
     const r = await api.submitRequest(token, reqData);
     setL(key, false);
+    if (r.bumped) { setS(key, r.error); api.getRequests(token).then(res => setRequests(res.requests || [])); return; }
     if (r.error) { setE(key, r.error); return; }
     setS(key, `✅ تم تسجيل الطلب رقم ${r.request_number} — في انتظار موافقة الإدارة`);
     api.getRequests(token).then(res => setRequests(res.requests || []));
@@ -88,7 +97,7 @@ export default function RequestsTab({ token, profile, onSaved }) {
         <PrintCard
           icon="📋" title='طلب شهادة إدارية "سائق سيارة الأجرة"' color={C_PURPLE}
           desc="طلب خطّي موجّه لمدير النقل للحصول على شهادة تثبت مزاولتك للنشاط"
-          onClick={() => printCert(api.printAdminCertDriver(token))}
+          onClick={() => printCert(api.printAdminCertDriver(token), "شهادة_إدارية")}
         />
 
         {/* 3. طلب شهادة إدارية مناوب */}
@@ -97,7 +106,7 @@ export default function RequestsTab({ token, profile, onSaved }) {
           desc="طلب خطّي يقدّمه المناوب للحصول على شهادة تثبت عمله لديك"
           disabled={!hasDeputy}
           disabledMsg="أكمل بيانات السائق المناوب أولاً"
-          onClick={() => printCert(api.printAdminCertDeputy(token))}
+          onClick={() => printCert(api.printAdminCertDeputy(token), "شهادة_إدارية_مناوب")}
         />
 
         <Divider label="عقود الكراء والمناوب" />

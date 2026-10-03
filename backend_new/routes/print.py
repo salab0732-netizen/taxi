@@ -1647,8 +1647,10 @@ def _request_letter(title, sender_rows, body_html, info_rows, purpose, today_str
     """طلب خطّي رسمي يقدّمه المعني للإدارة (وليس شهادة صادرة عنها)."""
     import html as _h
     purpose = (purpose or "").strip()
-    purpose_html = (f"<strong>{_h.escape(purpose)}</strong>" if purpose
-                    else "<span style='display:inline-block;min-width:260px;border-bottom:1px dotted #374151'>&nbsp;</span>")
+    # الغرض اختياري: إن لم يُذكر تُحذف عبارة «وذلك لغرض» وتُختم الجملة بنقطة
+    purpose_tail = (f" وذلك لغرض: <strong>{_h.escape(purpose)}</strong>." if purpose else "")
+    if not purpose:
+        body_html = body_html.rstrip().rstrip("،,").rstrip() + "."
     d10 = datetime.strptime(today_str, "%Y-%m-%d").strftime("%d/%m/%Y")
     sender = "".join(f"<div><span style='color:#374151'>{k}:</span> <strong>{val}</strong></div>" for k, val in sender_rows)
     info = "".join(f"<tr><td class='label'>{k}</td><td>{val}</td></tr>" for k, val in info_rows)
@@ -1659,8 +1661,7 @@ def _request_letter(title, sender_rows, body_html, info_rows, purpose, today_str
     </div>
     <div style="text-align:center;font-size:15px;font-weight:700;margin-bottom:6px">إلى السيد: مدير النقل لولاية البيض</div>
     <div style="margin:22px 0 18px;font-size:15px"><strong style="text-decoration:underline">الموضوع:</strong> {title}</div>
-    <div style="text-indent:28px;text-align:justify">{body_html}
-      وذلك لغرض: {purpose_html}.</div>
+    <div style="text-indent:28px;text-align:justify">{body_html}{purpose_tail}</div>
     <div style="margin:18px 0 6px;font-weight:700;font-size:13.5px">وإليكم المعلومات الخاصة بي:</div>
     <table>{info}</table>
     <div style="text-indent:28px;margin-top:18px">وفي انتظار ردّكم الإيجابي، تقبّلوا منّي سيدي المدير فائق عبارات التقدير والاحترام.</div>

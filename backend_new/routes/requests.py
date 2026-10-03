@@ -12,7 +12,24 @@ VALID_TYPES = [
     "تصريح_مناوب", "توقف_مؤقت", "توقف_نهائي",
     "استئناف", "تجديد_رخصة_سائق", "تجديد_رخصة_مناوب",
     "تجديد_وثائق_استغلال",
+    "شهادة_إدارية", "شهادة_إدارية_مناوب",
 ]
+# طلبات الشهادة الإدارية: لا تغيّر الملف — مسموحة حتى للسائق المتوقف
+CERT_TYPES = ("شهادة_إدارية", "شهادة_إدارية_مناوب")
+
+
+def _ensure_bump_cols(conn):
+    for col, typ in (("bumped_at", "TEXT"), ("repeat_count", "INTEGER DEFAULT 0")):
+        try:
+            conn.execute(f"ALTER TABLE requests ADD COLUMN {col} {typ}")
+        except Exception:
+            pass
+
+
+def _bump(conn, req_id, now):
+    """تكرار نفس الطلب وهو معلّق: لا يُنشأ طلب جديد — يُرفع الطلب القائم لأعلى قائمة الإدارة
+    بنفس الرقم والتاريخ، ويُعدّ التكرار."""
+    conn.execute("UPDATE requests SET bumped_at=?, repeat_count=COALESCE(repeat_count,0)+1 WHERE id=?", (now, req_id))
 
 
 # ════════════════════════════════════════
@@ -39,11 +56,15 @@ def submit_request(account):
         nin = driver["nin"] or ""
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         today = datetime.now().strftime("%Y-%m-%d")
+        _ensure_bump_cols(conn)
 
         # === قواعد عامة قبل أي حفظ ===
         if req_type in STATUS_TYPES:
             p = pending_status_request(conn, driver["id"])
             if p:
+                if p["request_type"] == req_type:
+                    _bump(conn, p["id"], now)
+                    return jsonify({"error": f"طلبك ({p['request_number']}) قيد المعالجة — تم تذكير الإدارة به وإعادته إلى أعلى قائمة الطلبات", "bumped": True}), 400
                 return jsonify({"error": f"لديك طلب «{p['request_type'].replace('_',' ')}» ({p['request_number']}) في انتظار موافقة الإدارة"}), 400
             if req_type == "استئناف" and driver["statut"] not in STOPPED:
                 return jsonify({"error": "لا يمكن الاستئناف: وضعك الحالي «نشط»"}), 400
@@ -51,7 +72,7 @@ def submit_request(account):
                 return jsonify({"error": f"وضعك الحالي هو «{req_type.replace('_',' ')}» بالفعل"}), 400
             if req_type == "توقف_مؤقت" and driver["statut"] == "توقف_نهائي":
                 return jsonify({"error": "أنت في توقف نهائي — قدّم طلب استئناف أولاً"}), 400
-        else:
+        elif req_type not in CERT_TYPES:
             why = lock_reason(conn, driver["id"])
             if why:
                 return jsonify({"error": why}), 400
@@ -62,13 +83,26 @@ def submit_request(account):
                 WHERE driver_id=? AND request_type='تصريح_مناوب' AND statut IN ('جديد','قيد_المعالجة')
             """, (now, driver["id"]))
         elif req_type not in STATUS_TYPES:
+            if req_type in CERT_TYPES:
+                # الطلب المكرّر يُلغى ويعوّضه الأحدث
+                conn.execute("""
+                    UPDATE requests SET statut='ملغى', admin_notes='أُلغي تلقائياً — حلّ محله طلب شهادة أحدث', updated_at=?
+                    WHERE driver_id=? AND request_type=? AND statut='جديد'
+                """, (now, driver["id"], req_type))
+            if req_type == "تغيير_سيارة":
+                # المركبة الجديدة حُفظت فعلاً في الملف — الطلب الجديد يعوّض الطلبات القديمة التي لم تُفتح بعد
+                conn.execute("""
+                    UPDATE requests SET statut='ملغى', admin_notes='أُلغي تلقائياً — حلّ محله طلب تغيير مركبة أحدث', updated_at=?
+                    WHERE driver_id=? AND request_type='تغيير_سيارة' AND statut='جديد'
+                """, (now, driver["id"]))
             dup = conn.execute("""
-                SELECT request_number FROM requests
+                SELECT id, request_number FROM requests
                 WHERE driver_id=? AND request_type=? AND statut IN ('جديد','قيد_المعالجة')
                 ORDER BY id DESC LIMIT 1
             """, (driver["id"], req_type)).fetchone()
             if dup:
-                return jsonify({"error": f"يوجد طلب من نفس النوع قيد المعالجة ({dup['request_number']}) — انتظر معالجته أولاً"}), 400
+                _bump(conn, dup["id"], now)
+                return jsonify({"error": f"طلبك ({dup['request_number']}) قيد المعالجة — تم تذكير الإدارة به وإعادته إلى أعلى قائمة الطلبات", "bumped": True}), 400
 
         attachments = {}
 
@@ -147,6 +181,34 @@ def submit_request(account):
                 return jsonify({"error": res_err}), 400
             request_data["resume"] = resume
             attachments.update(res_att)
+
+        # === تغيير المركبة: بيانات المركبتين تُؤخذ من قاعدة البيانات (أدق من الواجهة) ===
+        if req_type == "تغيير_سيارة":
+            cur_v = conn.execute("SELECT * FROM vehicles WHERE driver_id=? AND is_current=1 ORDER BY id DESC LIMIT 1",
+                                 (driver["id"],)).fetchone()
+            old_v = conn.execute("""SELECT v.* FROM vehicles_history vh JOIN vehicles v ON v.id = vh.vehicle_id
+                                    WHERE vh.driver_id=? AND vh.change_reason='تغيير_سيارة' AND vh.request_id IS NULL
+                                    ORDER BY vh.id DESC LIMIT 1""", (driver["id"],)).fetchone()
+            for pre, row in (("new_", cur_v), ("current_", old_v)):
+                if row:
+                    for k in ("num_immatriculation", "marque", "type_vehicule", "num_serie", "annee_circulation"):
+                        if row[k]:
+                            request_data[pre + k] = row[k]
+            if old_v:
+                request_data["num_immatriculation"] = old_v["num_immatriculation"]
+                request_data["marque"] = old_v["marque"]
+
+        # === طلب شهادة إدارية: الغرض + المعني (السائق أو مناوبه) ===
+        if req_type in CERT_TYPES:
+            purpose = (data.get("purpose") or "").strip()[:300]
+            if purpose:
+                request_data["purpose"] = purpose
+            if req_type == "شهادة_إدارية_مناوب":
+                dep = conn.execute("SELECT nin, nom_ar, prenom_ar FROM deputies WHERE driver_id=? AND is_current=1 ORDER BY id DESC LIMIT 1",
+                                   (driver["id"],)).fetchone()
+                if not dep:
+                    return jsonify({"error": "لا يوجد سائق مناوب مسجّل في ملفك"}), 400
+                request_data.update({"deputy_nin": dep["nin"], "deputy_name": f"{dep['nom_ar'] or ''} {dep['prenom_ar'] or ''}".strip()})
 
         # === رقم الطلب ===
         request_number = generate_number("REQ", "requests", "request_number")
