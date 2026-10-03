@@ -588,7 +588,7 @@ def render_hire_permit(rid, company_id=None):
         return Response("<p dir=rtl style='font-family:sans-serif;padding:30px'>⚠️ لم تُحرَّر الرخصة بعد — الطلب لم يُقبل من طرف الإدارة.</p>",
                         mimetype="text/html; charset=utf-8")
     warn = "" if h["is_current"] else '<div class="warn">&#9888;&#65039; رخصة ملغاة &#8212; تم فسخ عقد التوظيف</div>'
-    today = datetime.now().strftime("%Y/%m/%d")
+    today = datetime.now().strftime("%d/%m/%Y")
     num = _e(h["permit_number"])
     body = f"""<!DOCTYPE html>
 <html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>رخصة سائق أجير</title>{DEPUTY_PERMIT_DOC_STYLE}</head>
@@ -1020,7 +1020,16 @@ def admin_vehicle_requests(account):
     with get_db() as conn:
         rows = conn.execute(REQ_SELECT + (" WHERE r.statut=?" if statut else "") + " ORDER BY r.id DESC",
                             (statut,) if statut else ()).fetchall()
-    return jsonify({"requests": _req_rows(rows)})
+        out = _req_rows(rows)
+        # الرخصة الجديدة المحرّرة عند قبول تغيير المركبة — لطباعتها مباشرة من البطاقة
+        import re as _re
+        for x in out:
+            m = _re.search(r"الرخصة الجديدة\s+(\S+)", x.get("admin_notes") or "")
+            if x.get("statut") == "مقبول" and m:
+                h = conn.execute("SELECT id, is_current FROM company_hire_requests WHERE permit_number=?", (m.group(1),)).fetchone()
+                if h:
+                    x["permit_hire_id"], x["permit_number"], x["permit_current"] = h["id"], m.group(1), bool(h["is_current"])
+    return jsonify({"requests": out})
 
 
 @company_bp.route("/api/admin/company/vehicle-requests/<int:rid>", methods=["PUT"])
@@ -1178,8 +1187,6 @@ def render_company_card(cid):
       <tr><td class="sep" colspan="2">&#128202; ملخص</td></tr>
       <tr><td class="label">عدد المركبات</td><td>{len(vehicles)}</td></tr>
       <tr><td class="label">عدد السائقين الأجراء</td><td>{len(drivers)}</td></tr>
-      <tr><td class="label">عقود التوظيف السارية</td><td>{len(active)}</td></tr>
-      <tr><td class="label">رخص سائق أجير سارية</td><td>{n_permits}</td></tr>
     </table>
     <h3>&#128664; المركبات</h3>
     <table><tr {_H}><td>رقم التسجيل</td><td>الصنف/الطراز</td><td>الرقم التسلسلي</td><td>المقاعد</td><td>السائق</td><td>رخصة سائق أجير</td></tr>

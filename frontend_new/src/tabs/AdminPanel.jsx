@@ -35,13 +35,21 @@ export default function AdminPanel({ token, account, onLogout }) {
   const [section, setSection] = useState("stats");
   const [csection, setCsection] = useState("stats");
   const [counts, setCounts]   = useState({});
+  const [countTick, setCountTick] = useState(0);
 
   // عدّادات الشريط الجانبي
   useEffect(() => {
     api.adminStats(token).then(r => { const s = r.stats || r; setCounts(c => ({ ...c, drvNew: s.new_requests })); }).catch(() => {});
     fetch("/api/admin/company/stats", { headers: { "X-Token": token } }).then(r => r.json())
       .then(r => setCounts(c => ({ ...c, coNew: (r.stats?.new_requests || 0) + (r.stats?.vehicle_requests_new || 0) }))).catch(() => {});
-  }, [token, section, csection, space]);
+  }, [token, section, csection, space, countTick]);
+  // تحديث العدّادات بعد كل معالجة، ودوريًا كل 30 ثانية
+  useEffect(() => {
+    const bump = () => setCountTick(t => t + 1);
+    window.addEventListener("admin-counts", bump);
+    const iv = setInterval(bump, 30000);
+    return () => { window.removeEventListener("admin-counts", bump); clearInterval(iv); };
+  }, []);
 
   const isDrv = space === "drivers";
   const nav = isDrv
@@ -213,7 +221,8 @@ function RequestsSection({ token }) {
   async function updateRequest(id, statut, admin_notes = "") {
     const res = await api.adminUpdateRequest(token, id, { statut, admin_notes });
     if (res?.error) toast.error(res.error);
-    else toast.success(statut === "مقبول" ? "تم قبول الطلب وتطبيق أثره" : statut === "مرفوض" ? "تم رفض الطلب" : "تم تحديث حالة الطلب");
+    else window.dispatchEvent(new Event("admin-counts"));
+    if (!res?.error) toast.success(statut === "مقبول" ? "تم قبول الطلب وتطبيق أثره" : statut === "مرفوض" ? "تم رفض الطلب" : "تم تحديث حالة الطلب");
     await load();
     return res;
   }

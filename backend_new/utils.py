@@ -23,10 +23,15 @@ def get_account_from_token(token: str):
         return dict(row) if row else None
 
 
+STORE_UPLOADED_DOCUMENTS = False
+
+
 def save_image(base64_str: str, prefix: str, nin: str, mime_type: str = None) -> str | None:
     """يحفظ صورة (JPG/PNG/WEBP) أو PDF — النوع يُحدَّد من محتوى الملف نفسه فقط
     (لا يُوثق بالامتداد المرسل من المتصفح: يمنع رفع HTML/JS يُنفَّذ عند فتحه)"""
-    if not base64_str:
+    # سياسة المديرية: لا تُحفظ أي وثيقة مرفوعة (بطاقة رمادية، رخصة، بطاقة تعريف، قرار…) في البرنامج —
+    # الصورة تُستعمل للقراءة الآلية (OCR) فقط ثم تُهمل، والوثائق المولّدة تُنشأ عند الطلب
+    if not STORE_UPLOADED_DOCUMENTS or not base64_str:
         return None
     try:
         import base64

@@ -177,7 +177,6 @@ function MiniTable({ cols, rows }) {
 
 function CompanyDetail({ token, d }) {
   const c = d.company;
-  const img = p => p ? <a href={`/api/images/${p}?token=${token}`} target="_blank" rel="noreferrer" className="row" style={{ gap: 4, display: "inline-flex" }}><Icon name="image" size={14}/>عرض</a> : "—";
   const doc = (kind, id) => api.adminCompanyPrintUrl(token, kind, id);
   const name = x => `${x.prenom_ar || x.drv_prenom_ar || ""} ${x.nom_ar || x.drv_nom_ar || ""}`.trim() || "—";
   return (
@@ -205,23 +204,18 @@ function CompanyDetail({ token, d }) {
             { label: "تاريخ الميلاد", value: fmtDate(c.gerant_date_naissance) }, { label: "مكان الميلاد", value: c.gerant_lieu_naissance },
             { label: "رقم التعريف", value: c.gerant_nin, ltr: true }, { label: "العنوان", value: c.gerant_adresse },
           ]}/>
-          <div className="row-wrap" style={{ marginTop: 10, fontSize: 13 }}>
-            <span className="muted">بطاقة التعريف:</span> الأمامي {img(c.gerant_cni_recto_path)} · الخلفي {img(c.gerant_cni_verso_path)}
-          </div>
         </Card>
       </div>
       <Card title={`المركبات (${d.vehicles.length})`} icon="car" tone="info" className="flat">
-        <MiniTable cols={["رقم التسجيل", "الصنف / الطراز", "الرقم التسلسلي", "الطاقة", "المقاعد", "السائق", "البطاقة الرمادية"]}
+        <MiniTable cols={["رقم التسجيل", "الصنف / الطراز", "الرقم التسلسلي", "الطاقة", "المقاعد", "السائق"]}
           rows={d.vehicles.map(v => [<span className="ltr mono">{v.num_immatriculation}</span>, `${v.marque || ""} ${v.type_vehicule || ""}`,
             v.num_serie, v.energie, v.nb_places,
-            v.driver_id ? `${v.drv_prenom_ar || ""} ${v.drv_nom_ar || ""}` : <Badge tone="warning" size="sm">بدون سائق</Badge>,
-            img(v.image_carte_grise_path)])}/>
+            v.driver_id ? `${v.drv_prenom_ar || ""} ${v.drv_nom_ar || ""}` : <Badge tone="warning" size="sm">بدون سائق</Badge>])}/>
       </Card>
       <Card title={`السائقون الأجراء (${d.drivers.length})`} icon="users" className="flat">
-        <MiniTable cols={["الاسم واللقب", "رقم التعريف", "الهاتف", "رقم الرخصة", "الأصناف", "صالحة إلى", "الرخصة"]}
+        <MiniTable cols={["الاسم واللقب", "رقم التعريف", "الهاتف", "رقم الرخصة", "الأصناف", "صالحة إلى"]}
           rows={d.drivers.map(x => [name(x), <span className="ltr mono">{x.nin}</span>, x.telephone, x.num_permis, x.categories,
-            x.date_expiration && x.date_expiration < today() ? <Badge tone="danger" size="sm">{fmtDate(x.date_expiration)} منتهية</Badge> : fmtDate(x.date_expiration),
-            img(x.image_permis_recto_path)])}/>
+            x.date_expiration && x.date_expiration < today() ? <Badge tone="danger" size="sm">{fmtDate(x.date_expiration)} منتهية</Badge> : fmtDate(x.date_expiration)])}/>
       </Card>
       <Card title={`عقود التوظيف ورخص سائق أجير (${d.hires.length})`} icon="fileSignature" tone="violet" className="flat">
         <MiniTable cols={["رقم العقد", "السائق", "المركبة", "المدة", "الحالة", "رقم الرخصة", "الوثائق"]}
@@ -327,6 +321,7 @@ function HireRequestsAdmin({ token }) {
     setBusy(null);
     if (r?.error) { toast.error(r.error); return; }
     toast.success(st === "مقبول" ? `تم تحرير الرخصة ${r.permit_number || ""}` : "تم رفض الطلب");
+    window.dispatchEvent(new Event("admin-counts"));
     if (st === "مقبول") openPrint(api.adminCompanyPrintUrl(token, "hire-permit", h.id));
     load();
   }
@@ -397,7 +392,8 @@ function VehicleRequestsAdmin({ token }) {
     const res = await api.adminProcessVehicleRequest(token, r.id, st, notes);
     setBusy(null);
     if (res?.error) { toast.error(res.error); return; }
-    toast.success(st === "مقبول" ? "تم قبول تغيير المركبة" : "تم الرفض واسترجاع المركبة السابقة");
+    toast.success(st === "مقبول" ? (res.permit ? `تم القبول — حُرّرت الرخصة ${res.permit.permit_number}، اطبعها من البطاقة` : "تم قبول تغيير المركبة") : "تم الرفض واسترجاع المركبة السابقة");
+    window.dispatchEvent(new Event("admin-counts"));
     if (st === "مقبول" && res.permit) openPrint(api.adminCompanyPrintUrl(token, "hire-permit", res.permit.id));
     load();
   }
@@ -426,13 +422,16 @@ function VehicleRequestsAdmin({ token }) {
             </div>
             {r.admin_notes && <Alert tone="neutral" style={{ marginTop: 10 }}>{r.admin_notes}</Alert>}
             <div className="row-wrap" style={{ marginTop: 14 }}>
+              {r.statut === "مقبول" && r.permit_hire_id && (r.permit_current
+                ? <Button icon="printer" onClick={() => openPrint(api.adminCompanyPrintUrl(token, "hire-permit", r.permit_hire_id))}>طباعة رخصة سائق أجير {r.permit_number}</Button>
+                : <Badge tone="neutral" icon="ban">الرخصة {r.permit_number} لم تعد سارية</Badge>)}
               {r.statut === "جديد" && <>
                 <Button variant="success" icon="check" loading={busy === r.id} onClick={() => process(r, "مقبول")}>قبول</Button>
                 <Button variant="danger-soft" icon="x" disabled={busy === r.id} onClick={() => process(r, "مرفوض")}>رفض</Button>
               </>}
               <div className="spacer"/>
               <LinkButton size="sm" variant="ghost" icon="printer" href={api.adminCompanyPrintUrl(token, "vehicle-change", r.id)}>طلب التغيير</LinkButton>
-              {r.new_data?.image_carte_grise_path && <LinkButton size="sm" variant="ghost" icon="image" href={`/api/images/${r.new_data.image_carte_grise_path}?token=${token}`}>البطاقة الرمادية الجديدة</LinkButton>}
+
             </div>
           </div>
         </Card>

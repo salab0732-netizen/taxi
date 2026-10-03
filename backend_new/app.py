@@ -362,6 +362,8 @@ app.register_blueprint(requests_bp)
 app.register_blueprint(ocr_bp)
 app.register_blueprint(print_bp)
 app.register_blueprint(work_cert_bp)
+from routes.rtl_dates import register as _register_rtl_dates
+_register_rtl_dates(app)
 app.register_blueprint(admin_bp)
 app.register_blueprint(notif_bp)
 

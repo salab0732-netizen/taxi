@@ -767,7 +767,7 @@ def admin_print_deputy_permit(account, target_driver_id):
 
     perm = dict(perm)
     today_str     = datetime.now().strftime("%Y-%m-%d")
-    today_display = datetime.now().strftime("%Y/%m/%d")
+    today_display = datetime.now().strftime("%d/%m/%Y")
     year_str      = datetime.now().strftime("%Y")
     activity_type = perm.get("activity_type") or act.get("activity_type", "")
     muhit         = ACTIVITY_MUHIT_ADMIN.get(activity_type, activity_type or "—")

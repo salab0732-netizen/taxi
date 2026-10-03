@@ -75,7 +75,19 @@ STYLE = """
 </style>
 """
 
+_ISO_RE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?)?\b")
+
+
+def _iso_dates_to_dmy(html: str) -> str:
+    """توحيد صيغة التواريخ في كل الوثائق: 2026-09-10 11:39:54 ← 10/09/2026 11:39"""
+    def rep(m):
+        y, mo, d, hh, mm = m.groups()
+        return f"{d}/{mo}/{y}" + (f" {hh}:{mm}" if hh else "")
+    return _ISO_RE.sub(rep, html)
+
+
 def html_page(title: str, body: str) -> str:
+    body = _iso_dates_to_dmy(body)
     return f"""<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head><meta charset="UTF-8"><title>{title}</title>{STYLE}</head>
@@ -1866,7 +1878,7 @@ def print_exploitation_license(account, req_id):
         except: pass
 
     today_str = datetime.now().strftime("%Y-%m-%d")
-    today_display = datetime.now().strftime("%Y/%m/%d")
+    today_display = datetime.now().strftime("%d/%m/%Y")
     rt = req["request_type"]
 
     # تحديد نوع النشاط الفعلي حسب نوع الطلب

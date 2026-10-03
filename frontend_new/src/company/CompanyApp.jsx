@@ -84,11 +84,6 @@ function DocUpload({ label, doc, setDoc, ocr, onOcr, token, savedPath }) {
     <Field label={label}>
       <Dropzone label="اضغط أو اسحب الملف هنا" icon={ocr ? "scan" : "upload"} onFile={onImage} loading={loading}
         preview={doc?.preview} isPdf={doc?.isPdf} hint={ocr ? "تُستخرج البيانات آلياً — راجعها بعد ذلك" : undefined}/>
-      {!doc && savedPath && (
-        <a href={`/api/images/${savedPath}?token=${token}`} target="_blank" rel="noreferrer" className="row" style={{ gap: 6, fontSize: 12.5, fontWeight: 600 }}>
-          <Icon name="image" size={14}/> النسخة المحفوظة — اضغط للعرض
-        </a>
-      )}
     </Field>
   );
 }
