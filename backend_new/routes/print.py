@@ -1984,6 +1984,44 @@ def print_exploitation_license(account, req_id):
 # الشهادة التاريخية للمدير
 # ════════════════════════════════════════
 
+# ════════════════════════════════════════
+# رخصة الاستغلال السارية للسائق — من ملف السائق في لوحة الإدارة
+# GET /api/admin/print/current-license/<driver_id>
+# تُعاد طباعة آخر رخصة صادرة (آخر طلب مقبول مُنشئ لرخصة)
+# ════════════════════════════════════════
+_LICENSE_ISSUING_TYPES = ("تجديد_وثائق_استغلال", "تغيير_سيارة", "تغيير_باب", "تغيير_نشاط", "استئناف")
+
+def _notice_page(title, msg):
+    body = (f'<div style="max-width:560px;margin:60px auto;padding:28px;border:1.5px solid #125950;'
+            f'border-radius:10px;text-align:center;font-family:Segoe UI,Arial;direction:rtl">'
+            f'<h2 style="color:#125950;margin-bottom:12px">{title}</h2>'
+            f'<p style="color:#374151;line-height:1.9">{msg}</p></div>')
+    return Response(body, mimetype="text/html; charset=utf-8")
+
+@print_bp.route("/api/admin/print/current-license/<int:target_driver_id>")
+@require_admin
+def print_current_license(account, target_driver_id):
+    with get_db() as conn:
+        drv = conn.execute("SELECT statut FROM drivers WHERE id=?", (target_driver_id,)).fetchone()
+        if not drv:
+            return _notice_page("رخصة الاستغلال", "السائق غير موجود."), 404
+        statut = drv["statut"] or ""
+        if statut.startswith("توقف"):
+            return _notice_page("رخصة الاستغلال",
+                f"النشاط متوقف حاليًا ({statut.replace('_', ' ')}) — رخصة الاستغلال غير سارية."
+                "<br>تُحرَّر رخصة جديدة عند قبول طلب استئناف النشاط.")
+        ph = ",".join("?" * len(_LICENSE_ISSUING_TYPES))
+        req = conn.execute(
+            f"""SELECT id FROM requests WHERE driver_id=? AND statut='مقبول'
+                AND request_type IN ({ph}) ORDER BY id DESC LIMIT 1""",
+            (target_driver_id, *_LICENSE_ISSUING_TYPES)).fetchone()
+    if not req:
+        return _notice_page("رخصة الاستغلال",
+            "لم تُحرَّر أي رخصة استغلال لهذا السائق عبر المنصة بعد.<br>"
+            "تُحرَّر الرخصة عند قبول أحد الطلبات: تجديد وثائق الاستغلال، تغيير المركبة، تغيير رقم الباب، تغيير النشاط أو استئناف النشاط."), 404
+    return print_exploitation_license.__wrapped__(req_id=req["id"], account=account)
+
+
 @print_bp.route("/api/admin/print/history/<int:target_driver_id>")
 @require_admin
 def print_history_certificate(account, target_driver_id):

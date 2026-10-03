@@ -2,6 +2,7 @@
 // مكوّنات واجهة موحّدة — تُستعمل في كل الشاشات
 // ════════════════════════════════════════════════════════════
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Icon from "./Icon.jsx";
 
 export { Icon };
@@ -36,7 +37,7 @@ export const openPrint = (url) => window.open(url, "_blank");
 // ── بطاقات ──
 export function Card({ title, subtitle, icon, tone = "brand", actions, children, footer, className, bodyClass, padded = true, style, id }) {
   return (
-    <section className={cx("card", className)} style={style} id={id}>
+    <section className={cx("card", `card-tone-${tone}`, className)} style={style} id={id}>
       {(title || actions) && (
         <header className="card-header">
           {icon && <div className={cx("icon-tile sm", `tone-${tone}`)}><Icon name={icon} size={17}/></div>}
@@ -234,7 +235,8 @@ export function Modal({ open = true, onClose, title, subtitle, icon, tone = "bra
     return () => { window.removeEventListener("keydown", h); document.body.style.overflow = prev; };
   }, [open]);
   if (!open) return null;
-  return (
+  // تُعرض في جذر الصفحة حتى لا تتأثر بحاويات متحركة أو أشرطة ثابتة
+  return createPortal(
     <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && onClose && onClose()}>
       <div className={cx("modal", size)} role="dialog" aria-modal="true" dir="rtl">
         <div className="modal-head">
@@ -248,7 +250,8 @@ export function Modal({ open = true, onClose, title, subtitle, icon, tone = "bra
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-foot">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -413,4 +416,23 @@ export async function downloadFile(url, token, filename) {
   const a = document.createElement("a");
   a.href = href; a.download = filename; a.click();
   URL.revokeObjectURL(href);
+}
+
+/* ── تبديل النمط: مضيء / فاتح ── */
+export function getTheme() {
+  try { return localStorage.getItem("ui-theme") || "neon"; } catch { return "neon"; }
+}
+export function applyTheme(t) {
+  document.documentElement.setAttribute("data-theme", t);
+  try { localStorage.setItem("ui-theme", t); } catch {}
+}
+export function ThemeToggle({ className, light }) {
+  const [t, setT] = useState(getTheme());
+  const next = t === "neon" ? "light" : "neon";
+  return (
+    <Button variant="ghost" size="sm" icon={t === "neon" ? "sun" : "moon"} className={cx("theme-toggle", className)}
+      title={t === "neon" ? "النمط الفاتح" : "النمط المضيء"} aria-label="تبديل النمط"
+      style={light ? { color: "rgba(255,255,255,.85)" } : undefined}
+      onClick={() => { applyTheme(next); setT(next); }}/>
+  );
 }

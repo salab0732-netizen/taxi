@@ -1,0 +1,298 @@
+/* ════════════════════════════════════════════════════════════
+   النمط المضيء (Neon) — إطارات مضيئة تفاعلية، نصوص وأيقونات ملوّنة
+   يُفعَّل بـ <html data-theme="neon"> — نفس الخط (Cairo)
+   ════════════════════════════════════════════════════════════ */
+html[data-theme="neon"] {
+  color-scheme: dark;
+  --brand-950: #0a0820;
+  --brand-900: #5eead4;
+  --brand-800: #5eead4;
+  --brand-700: #5eead4;
+  --brand-600: #14b8a6;
+  --brand-500: #2dd4bf;
+  --brand-400: #5eead4;
+  --brand-200: rgba(45,212,191,.55);
+  --brand-100: rgba(45,212,191,.22);
+  --brand-50:  rgba(45,212,191,.12);
+
+  --gold-600: #facc15;
+  --gold-500: #facc15;
+  --gold-100: rgba(250,204,21,.4);
+  --gold-50:  rgba(250,204,21,.12);
+
+  --ink:    #f5f3ff;
+  --text:   #e9e6ff;
+  --text-2: #d4d0f5;
+  --muted:  #aaa4d6;
+  --subtle: #8a84bb;
+  --line:   rgba(139,122,255,.38);
+  --line-2: rgba(139,122,255,.2);
+  --field-border: rgba(167,139,250,.6);
+  --field-hover:  #c4b5fd;
+  --focus:        #22d3ee;
+  --focus-bg:     rgba(34,211,238,.07);
+  --bg:     #0b0920;
+  --surface:#151231;
+  --surface-2:#1b173d;
+
+  --success: #34d399; --success-bg: rgba(52,211,153,.12);  --success-line: rgba(52,211,153,.55);
+  --warning: #fbbf24; --warning-bg: rgba(251,191,36,.12);  --warning-line: rgba(251,191,36,.55);
+  --danger:  #fb7185; --danger-bg:  rgba(251,113,133,.12); --danger-line:  rgba(251,113,133,.6);
+  --info:    #38bdf8; --info-bg:    rgba(56,189,248,.12);  --info-line:    rgba(56,189,248,.55);
+  --violet:  #c084fc; --violet-bg:  rgba(192,132,252,.13); --violet-line:  rgba(192,132,252,.6);
+  --neutral: #a5b4fc; --neutral-bg: rgba(165,180,252,.1);  --neutral-line: rgba(165,180,252,.4);
+
+  --sh-xs: none;
+  --sh-sm: 0 4px 18px -8px rgba(0,0,0,.6);
+  --sh-md: 0 10px 30px -10px rgba(0,0,0,.7);
+  --sh-lg: 0 24px 60px -16px rgba(0,0,0,.8);
+  --ring: 0 0 0 3px rgba(34,211,238,.28), 0 0 18px rgba(34,211,238,.45);
+}
+
+/* ── الخلفية: سماء ليلية بنجوم خفيفة ── */
+html[data-theme="neon"] body {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, rgba(255,255,255,.55), transparent 60%),
+    radial-gradient(1px 1px at 72% 32%, rgba(196,181,253,.6), transparent 60%),
+    radial-gradient(1.4px 1.4px at 38% 76%, rgba(255,255,255,.45), transparent 60%),
+    radial-gradient(1px 1px at 88% 84%, rgba(165,180,252,.6), transparent 60%),
+    radial-gradient(1.2px 1.2px at 56% 52%, rgba(255,255,255,.35), transparent 60%),
+    radial-gradient(60% 40% at 80% 0%, rgba(124,58,237,.18), transparent 70%),
+    radial-gradient(50% 40% at 0% 100%, rgba(34,211,238,.10), transparent 70%);
+  background-size: 340px 340px, 420px 420px, 380px 380px, 460px 460px, 300px 300px, 100% 100%, 100% 100%;
+  background-attachment: fixed;
+}
+html[data-theme="neon"] ::selection { background: rgba(34,211,238,.35); color: #fff; }
+html[data-theme="neon"] ::-webkit-scrollbar-thumb { background: rgba(139,122,255,.45); border-color: var(--bg); }
+html[data-theme="neon"] a { color: #67e8f9; }
+
+/* ── ألوان النغمات (tones) + توهّج ── */
+html[data-theme="neon"] .tone-gold { --tc: #facc15; --tb: rgba(250,204,21,.12); --tl: rgba(250,204,21,.55); }
+html[data-theme="neon"] .icon-tile {
+  background: var(--tb); color: var(--tc); border: 1px solid var(--tl, transparent);
+  box-shadow: 0 0 16px -4px var(--tc), inset 0 0 10px -4px var(--tc); }
+html[data-theme="neon"] .icon-tile svg,
+html[data-theme="neon"] .alert > svg { filter: drop-shadow(0 0 4px currentColor); }
+
+/* ── البطاقات: إطار مضيء بلون البطاقة ── */
+html[data-theme="neon"] .card,
+html[data-theme="neon"] .stat,
+html[data-theme="neon"] .req-card,
+html[data-theme="neon"] .action-tile,
+html[data-theme="neon"] .role-card,
+html[data-theme="neon"] .table-wrap,
+html[data-theme="neon"] .steps-nav,
+html[data-theme="neon"] .modal {
+  --gc: var(--cg, #8b5cf6);
+  background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,0) 60%), var(--surface);
+  border: 1.5px solid color-mix(in srgb, var(--gc) 55%, transparent);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.02) inset, 0 0 22px -10px var(--gc);
+  transition: border-color .2s, box-shadow .2s, transform .2s;
+}
+html[data-theme="neon"] .card:hover,
+html[data-theme="neon"] .req-card:hover,
+html[data-theme="neon"] .table-wrap:hover {
+  border-color: color-mix(in srgb, var(--gc) 85%, transparent);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.03) inset, 0 0 30px -8px var(--gc);
+}
+html[data-theme="neon"] .stat.clickable:hover,
+html[data-theme="neon"] .action-tile:hover:not(:disabled),
+html[data-theme="neon"] .role-card:hover {
+  border-color: var(--gc); transform: translateY(-2px);
+  box-shadow: 0 0 0 1px var(--gc) inset, 0 0 34px -6px var(--gc);
+}
+html[data-theme="neon"] .stat { --gc: var(--tc); }
+html[data-theme="neon"] .stat::after { box-shadow: 0 0 10px var(--tc); }
+html[data-theme="neon"] .stat-value { color: var(--tc); text-shadow: 0 0 14px color-mix(in srgb, var(--tc) 60%, transparent); }
+html[data-theme="neon"] .req-card.open { --gc: #22d3ee; border-color: rgba(34,211,238,.75); }
+html[data-theme="neon"] .action-tile { --gc: #a78bfa; }
+html[data-theme="neon"] .role-card { --gc: #22d3ee; }
+
+/* لون توهّج كل بطاقة حسب نغمتها */
+html[data-theme="neon"] .card-tone-brand   { --cg: #2dd4bf; }
+html[data-theme="neon"] .card-tone-success { --cg: #34d399; }
+html[data-theme="neon"] .card-tone-warning { --cg: #fbbf24; }
+html[data-theme="neon"] .card-tone-danger  { --cg: #fb7185; }
+html[data-theme="neon"] .card-tone-info    { --cg: #38bdf8; }
+html[data-theme="neon"] .card-tone-violet  { --cg: #c084fc; }
+html[data-theme="neon"] .card-tone-neutral { --cg: #818cf8; }
+html[data-theme="neon"] .card-tone-gold    { --cg: #facc15; }
+
+html[data-theme="neon"] .card-header { border-bottom-color: color-mix(in srgb, var(--gc) 28%, transparent); }
+html[data-theme="neon"] .card-title {
+  color: color-mix(in srgb, var(--gc) 55%, #ffffff);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--gc) 55%, transparent); }
+html[data-theme="neon"] .card-footer,
+html[data-theme="neon"] .modal-foot { background: rgba(0,0,0,.18); border-top-color: var(--line-2); }
+
+/* ── عناوين الصفحات: نص مضيء ── */
+html[data-theme="neon"] .page-title,
+html[data-theme="neon"] .topbar-title {
+  color: #c4b5fd; text-shadow: 0 0 18px rgba(167,139,250,.65); }
+html[data-theme="neon"] .eyebrow { color: #67e8f9; text-shadow: 0 0 10px rgba(34,211,238,.5); }
+html[data-theme="neon"] .section-title,
+html[data-theme="neon"] .doc-group-title { color: #a5b4fc; }
+html[data-theme="neon"] .section-title::after { background: linear-gradient(90deg, transparent, rgba(139,122,255,.45)); }
+
+/* ── الحقول ── */
+html[data-theme="neon"] .input,
+html[data-theme="neon"] .select,
+html[data-theme="neon"] .textarea {
+  background-color: rgba(10,8,32,.65); color: #fff; border-color: var(--field-border); }
+html[data-theme="neon"] .input::placeholder,
+html[data-theme="neon"] .textarea::placeholder { color: #7f78b3; }
+html[data-theme="neon"] .select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23c4b5fd' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); }
+html[data-theme="neon"] .select option { background: #151231; color: #fff; }
+html[data-theme="neon"] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):focus,
+html[data-theme="neon"] select:focus,
+html[data-theme="neon"] textarea:focus { background-color: rgba(34,211,238,.06) !important; }
+html[data-theme="neon"] .input:disabled,
+html[data-theme="neon"] .select:disabled,
+html[data-theme="neon"] .textarea:disabled,
+html[data-theme="neon"] .input[readonly] { background-color: rgba(255,255,255,.04); color: var(--text-2); }
+html[data-theme="neon"] .input.locked { background-color: rgba(45,212,191,.08); border-color: rgba(45,212,191,.6); color: #99f6e4; }
+html[data-theme="neon"] .field-label { color: #ddd6fe; }
+html[data-theme="neon"] input[type="date"] { color-scheme: dark; }
+
+/* ── الأزرار ── */
+html[data-theme="neon"] .btn-primary {
+  background: linear-gradient(135deg, #14b8a6, #0d9488); color: #fff;
+  box-shadow: 0 0 18px -4px rgba(45,212,191,.7), inset 0 1px 0 rgba(255,255,255,.18); }
+html[data-theme="neon"] .btn-primary:hover:not(:disabled) { box-shadow: 0 0 26px -2px rgba(45,212,191,.85); background: linear-gradient(135deg, #2dd4bf, #14b8a6); }
+html[data-theme="neon"] .btn-secondary { background: rgba(255,255,255,.03); color: #e9e6ff; border-color: rgba(167,139,250,.55); }
+html[data-theme="neon"] .btn-secondary svg { color: #a78bfa; filter: drop-shadow(0 0 3px rgba(167,139,250,.8)); }
+html[data-theme="neon"] .btn-secondary:hover:not(:disabled) { background: rgba(167,139,250,.1); border-color: #a78bfa; box-shadow: 0 0 18px -4px rgba(167,139,250,.75); }
+html[data-theme="neon"] .btn-ghost { color: #d4d0f5; }
+html[data-theme="neon"] .btn-ghost:hover:not(:disabled) { background: rgba(255,255,255,.07); }
+html[data-theme="neon"] .btn-soft,
+html[data-theme="neon"] .btn-danger-soft,
+html[data-theme="neon"] .btn-warning-soft,
+html[data-theme="neon"] .btn-violet-soft { border-width: 1.5px; }
+html[data-theme="neon"] .btn-soft { color: #5eead4; border-color: rgba(45,212,191,.55); }
+html[data-theme="neon"] .btn-soft:hover:not(:disabled) { box-shadow: 0 0 16px -4px rgba(45,212,191,.8); background: rgba(45,212,191,.18); }
+html[data-theme="neon"] .btn-violet-soft:hover:not(:disabled) { box-shadow: 0 0 16px -4px rgba(192,132,252,.8); background: rgba(192,132,252,.2); }
+html[data-theme="neon"] .btn-danger-soft:hover:not(:disabled) { box-shadow: 0 0 16px -4px rgba(251,113,133,.8); background: rgba(251,113,133,.2); }
+html[data-theme="neon"] .btn-warning-soft:hover:not(:disabled) { box-shadow: 0 0 16px -4px rgba(251,191,36,.8); background: rgba(251,191,36,.2); }
+html[data-theme="neon"] .btn-success { background: #059669; box-shadow: 0 0 16px -4px rgba(52,211,153,.8); }
+html[data-theme="neon"] .btn-danger  { background: #e11d48; box-shadow: 0 0 16px -4px rgba(251,113,133,.8); }
+html[data-theme="neon"] .btn-violet  { background: #7c3aed; box-shadow: 0 0 16px -4px rgba(192,132,252,.8); }
+html[data-theme="neon"] .btn-gold    { box-shadow: 0 0 16px -4px rgba(250,204,21,.8); }
+html[data-theme="neon"] .btn-link { color: #67e8f9; }
+
+/* ── الشارات والتنبيهات ── */
+html[data-theme="neon"] .badge { box-shadow: 0 0 10px -3px var(--tc, transparent); }
+html[data-theme="neon"] .alert { color: var(--text); box-shadow: 0 0 18px -10px var(--tc); }
+html[data-theme="neon"] .alert-title { text-shadow: 0 0 10px color-mix(in srgb, var(--tc) 55%, transparent); }
+
+/* ── قوائم الوصف (الخانات) ── */
+html[data-theme="neon"] .dl-item { background: rgba(10,8,32,.5); border-color: rgba(139,122,255,.35); }
+html[data-theme="neon"] .dl-item .dt { color: #a5a0d6; }
+html[data-theme="neon"] .dl-item .dd { color: #fff; }
+html[data-theme="neon"] .dl-item.warn { border-color: var(--danger-line); background: var(--danger-bg); }
+html[data-theme="neon"] .kv-strip { background: var(--line-2); }
+html[data-theme="neon"] .kv-strip > div { background: var(--surface); }
+
+/* ── الجداول ── */
+html[data-theme="neon"] .table th { background: #1d1844; color: #c4b5fd; border-bottom-color: rgba(139,122,255,.45); }
+html[data-theme="neon"] .table tbody tr:hover > td { background: rgba(139,122,255,.08); }
+html[data-theme="neon"] .table tbody tr.is-open > td { background: rgba(34,211,238,.08); }
+html[data-theme="neon"] .table tbody tr.is-dup > td { background: rgba(251,113,133,.08); }
+html[data-theme="neon"] .table td.detail-cell { background: rgba(5,4,20,.45) !important; }
+
+/* ── التبويبات / الشرائح ── */
+html[data-theme="neon"] .tab.active { color: #67e8f9; text-shadow: 0 0 10px rgba(34,211,238,.6); }
+html[data-theme="neon"] .tab.active::after { background: #22d3ee; box-shadow: 0 0 10px #22d3ee; }
+html[data-theme="neon"] .segmented { background: rgba(0,0,0,.25); }
+html[data-theme="neon"] .segmented button.active { background: rgba(34,211,238,.14); color: #67e8f9; box-shadow: 0 0 0 1px rgba(34,211,238,.6) inset, 0 0 14px -4px #22d3ee; }
+html[data-theme="neon"] .chip { background: rgba(255,255,255,.03); color: #d4d0f5; border-color: rgba(167,139,250,.5); }
+html[data-theme="neon"] .chip:hover { border-color: #a78bfa; box-shadow: 0 0 12px -4px #a78bfa; }
+html[data-theme="neon"] .chip.active { background: rgba(45,212,191,.16); color: #5eead4; border-color: #2dd4bf; box-shadow: 0 0 14px -3px #2dd4bf; }
+
+/* ── رفع الملفات ── */
+html[data-theme="neon"] .dropzone { background: rgba(10,8,32,.45); }
+html[data-theme="neon"] .dropzone:hover,
+html[data-theme="neon"] .dropzone.drag { border-color: #22d3ee; background: rgba(34,211,238,.06); box-shadow: 0 0 22px -8px #22d3ee; }
+html[data-theme="neon"] .dropzone.has-file { background: rgba(45,212,191,.05); }
+html[data-theme="neon"] .dropzone .dz-busy { background: rgba(11,9,32,.9); color: #5eead4; }
+html[data-theme="neon"] .doc-empty { border-color: rgba(139,122,255,.35); }
+
+/* ── النوافذ / التنبيهات المنبثقة ── */
+html[data-theme="neon"] .modal { --gc: #a78bfa; }
+html[data-theme="neon"] .modal-backdrop { background: rgba(3,2,12,.7); }
+html[data-theme="neon"] .toast { background: #1d1844; border: 1px solid rgba(139,122,255,.5); box-shadow: 0 0 24px -8px #8b5cf6; }
+
+/* ── الهيكل: الشريط الجانبي والعلوي ── */
+html[data-theme="neon"] .sidebar {
+  background: #0d0b26; border-left: 1px solid rgba(139,122,255,.3);
+  background-image: radial-gradient(120% 50% at 100% 0%, rgba(124,58,237,.28), transparent 60%); }
+html[data-theme="neon"] .nav-item { color: #c9c4ef; }
+html[data-theme="neon"] .nav-item svg { color: #a78bfa; }
+html[data-theme="neon"] .nav-item:hover { background: rgba(139,122,255,.12); }
+html[data-theme="neon"] .nav-item.active {
+  background: rgba(34,211,238,.1); color: #67e8f9; text-shadow: 0 0 10px rgba(34,211,238,.6);
+  box-shadow: inset -3px 0 0 #22d3ee, 0 0 0 1px rgba(34,211,238,.35) inset, 0 0 16px -6px #22d3ee; }
+html[data-theme="neon"] .nav-item.active svg { color: #22d3ee; filter: drop-shadow(0 0 4px #22d3ee); }
+html[data-theme="neon"] .space-switch { background: rgba(0,0,0,.35); border: 1px solid rgba(139,122,255,.25); }
+html[data-theme="neon"] .space-switch button.active { background: rgba(167,139,250,.2); color: #e9d5ff; box-shadow: 0 0 0 1px rgba(167,139,250,.7) inset, 0 0 14px -4px #a78bfa; }
+html[data-theme="neon"] .brand-name { color: #fff; text-shadow: 0 0 12px rgba(250,204,21,.35); }
+html[data-theme="neon"] .user-chip { background: rgba(139,122,255,.08); border: 1px solid rgba(139,122,255,.25); }
+html[data-theme="neon"] .avatar { background: rgba(45,212,191,.15); color: #5eead4; box-shadow: 0 0 10px -3px #2dd4bf; }
+html[data-theme="neon"] .topbar { background: rgba(11,9,32,.78); border-bottom-color: rgba(139,122,255,.3); }
+
+/* ── فضاء السائق ── */
+html[data-theme="neon"] .appbar,
+html[data-theme="neon"] .hero {
+  background-color: #0d0b26;
+  background-image: radial-gradient(70% 140% at 100% 0%, rgba(124,58,237,.35), transparent 60%), radial-gradient(50% 120% at 0% 0%, rgba(34,211,238,.15), transparent 60%); }
+html[data-theme="neon"] .hero { border-bottom: 1px solid rgba(139,122,255,.25); }
+html[data-theme="neon"] .step-btn { color: #c9c4ef; }
+html[data-theme="neon"] .step-btn svg { color: #a78bfa; }
+html[data-theme="neon"] .step-btn:hover { background: rgba(139,122,255,.1); }
+html[data-theme="neon"] .step-btn.active { background: rgba(34,211,238,.1); color: #67e8f9; text-shadow: 0 0 10px rgba(34,211,238,.6); box-shadow: 0 0 0 1.5px rgba(34,211,238,.7) inset, 0 0 18px -6px #22d3ee; }
+html[data-theme="neon"] .step-btn.active svg { color: #22d3ee; filter: drop-shadow(0 0 4px #22d3ee); }
+html[data-theme="neon"] .state-dot.done { box-shadow: 0 0 8px var(--success); }
+html[data-theme="neon"] .state-dot.alert { box-shadow: 0 0 8px var(--danger); }
+html[data-theme="neon"] .state-dot.todo { background: #4c4680; }
+@media (max-width: 760px) {
+  html[data-theme="neon"] .bottom-nav { background: rgba(13,11,38,.96); border-top-color: rgba(139,122,255,.35); }
+  html[data-theme="neon"] .bottom-nav button.active { color: #67e8f9; background: rgba(34,211,238,.1); }
+}
+
+/* ── صفحة الدخول ── */
+html[data-theme="neon"] .landing { background: var(--bg); }
+html[data-theme="neon"] .landing-aside { background-color: #0d0b26;
+  background-image: radial-gradient(70% 60% at 85% 10%, rgba(124,58,237,.45), transparent 70%), radial-gradient(60% 50% at 10% 100%, rgba(34,211,238,.18), transparent 70%); }
+html[data-theme="neon"] .landing-main { background: transparent; }
+html[data-theme="neon"] .landing-hero-title { text-shadow: 0 0 22px rgba(167,139,250,.5); }
+html[data-theme="neon"] .landing-hero-title em { color: #facc15; text-shadow: 0 0 18px rgba(250,204,21,.6); }
+html[data-theme="neon"] .role-title { color: #fff; }
+
+/* ── متفرقات ── */
+html[data-theme="neon"] .skeleton { background: linear-gradient(90deg, #1b173d 0%, #241f4f 40%, #1b173d 80%); background-size: 800px 100%; }
+html[data-theme="neon"] .progress { background: rgba(255,255,255,.08); }
+html[data-theme="neon"] .progress > span { background: linear-gradient(90deg, #22d3ee, #a78bfa); box-shadow: 0 0 10px #22d3ee; }
+html[data-theme="neon"] .tl-item:not(:last-child)::before { background: rgba(139,122,255,.4); }
+html[data-theme="neon"] .list-item { border-bottom-color: var(--line-2); }
+html[data-theme="neon"] .spinner { border-color: rgba(34,211,238,.2); border-top-color: #22d3ee; }
+html[data-theme="neon"] img { background: transparent; }
+
+/* زر تبديل النمط */
+.theme-toggle svg { transition: transform .3s; }
+.theme-toggle:hover svg { transform: rotate(20deg); }
+html[data-theme="neon"] .theme-toggle { color: #facc15 !important; }
+html[data-theme="neon"] .theme-toggle svg { filter: drop-shadow(0 0 5px #facc15); }
+html[data-theme="neon"] .feat:nth-child(1) .icon-tile { --tc: #22d3ee; --tb: rgba(34,211,238,.1); --tl: rgba(34,211,238,.5); }
+html[data-theme="neon"] .feat:nth-child(2) .icon-tile { --tc: #c084fc; --tb: rgba(192,132,252,.1); --tl: rgba(192,132,252,.5); }
+html[data-theme="neon"] .feat:nth-child(3) .icon-tile { --tc: #facc15; --tb: rgba(250,204,21,.1); --tl: rgba(250,204,21,.5); }
+
+/* ── إعداد الشهادة الإدارية: بطاقات الفترات ── */
+.wc-period { border: 1.5px solid color-mix(in srgb, var(--wc, var(--brand-500)) 55%, transparent); border-inline-start: 4px solid var(--wc, var(--brand-500));
+  border-radius: 12px; padding: 12px 14px; background: var(--surface-2); }
+.wc-num { width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 12px; font-weight: 800;
+  background: var(--wc, var(--brand-500)); color: #fff; }
+html[data-theme="neon"] .wc-period { background: rgba(10,8,32,.45); box-shadow: 0 0 18px -10px var(--wc); }
+html[data-theme="neon"] .wc-num { box-shadow: 0 0 10px var(--wc); color: #0b0920; }
+.modal.lg { display: flex; flex-direction: column; overflow: hidden; }
+.modal.lg .modal-body { overflow-y: auto; flex: 1; min-height: 0; }

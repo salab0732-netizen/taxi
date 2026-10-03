@@ -103,10 +103,10 @@ export const api = {
       body: JSON.stringify({ driver_id: driverId || null }),
     }).then(r => r.json()),
 
-  login: (username, password) =>
+  login: (username, password, space) =>
     fetch(`${BASE}/auth/login`, {
       method: "POST", headers: headers(),
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password, space: space || "driver" }),
     }).then(r => r.json()),
 
   logout: (token) =>

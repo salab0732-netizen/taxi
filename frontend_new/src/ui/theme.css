@@ -24,8 +24,12 @@
   --text-2: #334155;
   --muted:  #4b5869;
   --subtle: #7b8798;
-  --line:   #d7dee6;
-  --line-2: #eef2f6;
+  --line:   #b4c0cd;
+  --line-2: #dbe2ea;
+  --field-border: #7f8ea0;
+  --field-hover:  #4f5f73;
+  --focus:        #2563eb;
+  --focus-bg:     #f7faff;
   --bg:     #f4f6f8;
   --surface:#ffffff;
   --surface-2:#f8fafc;
@@ -42,7 +46,7 @@
   --sh-sm: 0 1px 3px rgba(15,23,42,.06), 0 1px 2px rgba(15,23,42,.04);
   --sh-md: 0 4px 12px -2px rgba(15,23,42,.08), 0 2px 4px -2px rgba(15,23,42,.05);
   --sh-lg: 0 18px 40px -12px rgba(15,23,42,.18), 0 6px 12px -6px rgba(15,23,42,.08);
-  --ring: 0 0 0 3px rgba(20,147,124,.22);
+  --ring: 0 0 0 3.5px rgba(37,99,235,.25);
 
   --font: "Cairo", "Segoe UI", Tahoma, system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -484,3 +488,24 @@ details.disclosure > summary::-webkit-details-marker { display: none; }
 .req-head { display: flex; align-items: center; gap: 14px; padding: 14px 16px; cursor: pointer; }
 .req-body { padding: 4px 16px 16px; border-top: 1px solid var(--line-2); animation: fadeIn .2s; }
 @media print { .sidebar, .topbar, .bottom-nav, .appbar { display: none !important; } .main { margin: 0 !important; } }
+
+/* مجموعات وثائق ملف السائق (لوحة الإدارة) */
+.doc-group-title { font-size: 12.5px; font-weight: 800; color: var(--ink); margin: 0 0 8px; letter-spacing: .2px; }
+.doc-empty { font-size: 13px; color: var(--muted); padding: 9px 12px; border: 1px dashed var(--line); border-radius: 10px; text-align: center; }
+
+/* ═══ إطارات واضحة + تركيز بلون مغاير (أزرق) ═══ */
+.input, .select, .textarea { border: 2px solid var(--field-border); }
+.input:hover, .select:hover, .textarea:hover { border-color: var(--field-hover); }
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):focus,
+select:focus, textarea:focus {
+  border-color: var(--focus) !important; background-color: var(--focus-bg) !important;
+  box-shadow: var(--ring) !important; outline: none; }
+.input.is-invalid { border-color: var(--danger); }
+.input-wrap:focus-within > svg { color: var(--focus); }
+.card, .stat, .table-wrap, .req-card, .action-tile, .role-card, .steps-nav, .kv-strip { border-width: 1.5px; }
+.dl-item { border-color: var(--line); }
+.chip { border-width: 1.5px; border-color: var(--field-border); }
+.btn-secondary { border-width: 1.5px; border-color: var(--field-border); }
+.btn-secondary:hover { border-color: var(--field-hover); }
+.dropzone:not(:hover):not(.drag):not(.has-file) { border-color: var(--field-border); }
+.input.locked { border-color: #5fb8a3; }

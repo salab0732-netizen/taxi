@@ -1122,3 +1122,67 @@ def migrate_approval_flow(account):
                 total += 1
         conn.commit()
     return jsonify({"success": True, "cancelled": cancelled, "history_records": total})
+
+
+# ════════════════════════════════════════
+# عقود توظيف الشركات — للمدير (إضافة مسارات مفقودة تسبّبت في 404)
+# GET  /api/admin/hire-requests?statut=X
+# PUT  /api/admin/hire-requests/<id>
+# ════════════════════════════════════════
+
+_ADMIN_HIRE_SELECT = """
+    SELECT h.*, d.nom_ar AS drv_nom_ar, d.prenom_ar AS drv_prenom_ar,
+           d.num_permis AS drv_num_permis, d.date_expiration AS drv_permis_expiration,
+           c.nom_ar AS co_nom_ar, c.registre_commerce AS co_rc,
+           c.num_agrement AS co_num_agrement, c.date_agrement AS co_date_agrement
+    FROM company_hire_requests h
+    JOIN company_drivers d ON d.id = h.driver_id
+    JOIN companies c       ON c.id = h.company_id
+"""
+
+@admin_bp.route("/api/admin/hire-requests", methods=["GET"])
+@require_admin
+def admin_list_hire_requests(account):
+    statut = (request.args.get("statut") or "").strip()
+    with get_db() as conn:
+        if statut:
+            rows = conn.execute(
+                _ADMIN_HIRE_SELECT + " WHERE h.statut=? ORDER BY h.id DESC", (statut,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                _ADMIN_HIRE_SELECT + " ORDER BY h.id DESC"
+            ).fetchall()
+    return jsonify({"requests": [dict(r) for r in rows]})
+
+
+@admin_bp.route("/api/admin/hire-requests/<int:rid>", methods=["PUT"])
+@require_admin
+def admin_process_hire_request(account, rid):
+    data        = request.get_json() or {}
+    new_statut  = (data.get("statut") or "").strip()
+    admin_notes = (data.get("admin_notes") or "").strip()
+    now         = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    VALID = ["جديد", "قيد_المعالجة", "مقبول", "مرفوض", "ملغى"]
+    if new_statut not in VALID:
+        return jsonify({"error": "حالة غير صحيحة"}), 400
+
+    with get_db() as conn:
+        h = conn.execute("SELECT * FROM company_hire_requests WHERE id=?", (rid,)).fetchone()
+        if not h:
+            return jsonify({"error": "العقد غير موجود"}), 404
+        h = dict(h)
+
+        if h["statut"] in ("مرفوض", "ملغى") and new_statut != h["statut"]:
+            return jsonify({"error": f"هذا العقد معالَج نهائياً ({h['statut']}) — لا يمكن تغيير قراره"}), 400
+
+        conn.execute(
+            """UPDATE company_hire_requests
+               SET statut=?, admin_notes=?, processed_at=?, updated_at=?
+               WHERE id=?""",
+            (new_statut, admin_notes, now, now, rid)
+        )
+        conn.commit()
+
+    return jsonify({"success": True, "id": rid, "statut": new_statut})

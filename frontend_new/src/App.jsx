@@ -8,7 +8,7 @@ import RequestsTab from "./tabs/RequestsTab.jsx";
 import AdminPanel  from "./tabs/AdminPanel.jsx";
 import CompanyApp  from "./company/CompanyApp.jsx";
 import Icon, { GoogleLogo } from "./ui/Icon.jsx";
-import { Button, Alert, Field, TextInput, Modal, Dropzone, Spinner as KitSpinner, Toaster, ConfirmHost, Badge, statusLabel, STATUS_TONE } from "./ui/kit.jsx";
+import { Button, Alert, Field, TextInput, Modal, Dropzone, Spinner as KitSpinner, Toaster, ConfirmHost, Badge, statusLabel, STATUS_TONE, ThemeToggle } from "./ui/kit.jsx";
 import { BrandMark } from "./ui/Shell.jsx";
 
 // ════════════════════════════════════════
@@ -37,7 +37,7 @@ export function Input({ label, required, children, hint }) {
 
 // نمط الحقول الموحّد (للحقول التي تستعمل style={INP})
 export const INP = {
-  width: "100%", height: 44, padding: "0 12px", border: "1.5px solid #b9c4d0",
+  width: "100%", height: 44, padding: "0 12px", border: "2px solid var(--field-border)",
   borderRadius: 10, fontSize: 15, fontWeight: 600, outline: "none", boxSizing: "border-box",
   fontFamily: "inherit", background: "#fff", color: "var(--ink)", boxShadow: "var(--sh-xs)",
 };
@@ -123,8 +123,8 @@ function AuthModal({ onSuccess, onClose, kind = "driver", initialError = "" }) {
       api.logout(r.token); setError("هذا الحساب ليس حساب شركة — استعمل فضاء سائقي سيارات الأجرة"); return;
     }
     if (!adminOnly && r.role === "admin") {
-      localStorage.setItem("token", r.token); localStorage.removeItem("role");
-      window.location.hash = "#admin"; return;
+      // حساب الإدارة لا يُقبل أبدًا من فضاء عام
+      setError("بيانات الدخول غير صحيحة"); return;
     }
     if (!companyOnly && !adminOnly && r.role === "company") {
       api.logout(r.token); setError("هذا حساب شركة — استعمل فضاء شركات سيارات الأجرة"); return;
@@ -138,7 +138,7 @@ function AuthModal({ onSuccess, onClose, kind = "driver", initialError = "" }) {
     setLoading(true);
     let r;
     if (mode === "login") {
-      r = await api.login(username, password);
+      r = await api.login(username, password, kind);
     } else {
       const extra = accountType === "company"
         ? { nom_ar: companyNom, registre_commerce: companyRC, telephone: companyTel, representant_nom: companyRep }
@@ -174,7 +174,7 @@ function AuthModal({ onSuccess, onClose, kind = "driver", initialError = "" }) {
     }).then(x => x.json()).catch(() => ({ error: "خطأ في الاتصال" }));
     if (r.error) { setLoading(false); setError(r.error); return; }
     const phone = forgotPhone.trim(), newPass = forgotPass;
-    const lr = await api.login(phone, newPass);
+    const lr = await api.login(phone, newPass, kind);
     setLoading(false);
     if (!lr.error) { finishLogin(lr); return; }
     switchMode("login"); setUsername(phone); setPassword(newPass);
@@ -319,6 +319,7 @@ function Landing({ onDriver, onCompany }) {
 
       <main className="landing-main">
         <div className="landing-main-inner anim-rise">
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}><ThemeToggle/></div>
           <div className="eyebrow">مرحباً بكم</div>
           <h2 style={{ fontSize: 26 }}>اختر فضاءك للمتابعة</h2>
           <p className="muted" style={{ marginTop: 6, marginBottom: 26 }}>سجّل الدخول أو أنشئ حساباً جديداً في الفضاء المناسب لك.</p>
@@ -476,7 +477,11 @@ function MainApp() {
       .then(([me, prof, notifs]) => {
         if (cancelled) return;
         if (me.error) { logout(); return; }
-        if (me.role === "admin") { window.location.hash = "#admin"; return; }
+        if (me.role === "admin") {
+          // توكن إدارة في الفضاء العام: لا تحويل تلقائي للوحة الإدارة
+          // (لا نمسح التخزين حتى لا تُغلق جلسة لوحة الإدارة المفتوحة في تبويب آخر)
+          setToken(""); setAccount(null); return;
+        }
         setAccount(me); setProfile(prof); setUnread(notifs.unread || 0);
       }).catch(() => {}).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -536,6 +541,7 @@ function MainApp() {
             {unread > 0 && <span className="count-pill">{unread > 9 ? "9+" : unread}</span>}
           </div>
           <span className="hide-mobile ltr" style={{ fontSize: 13, color: "rgba(255,255,255,.75)" }}>{account?.username}</span>
+          <ThemeToggle light/>
           <Button variant="ghost" icon="logout" onClick={logout}><span className="hide-mobile">خروج</span></Button>
         </div>
       </header>

@@ -1,7 +1,7 @@
 // غلاف التطبيق بشريط جانبي (لوحة الإدارة وفضاء الشركات)
 import { useState, useEffect } from "react";
 import Icon from "./Icon.jsx";
-import { Avatar, Button, Toaster, ConfirmHost } from "./kit.jsx";
+import { Avatar, Button, Toaster, ConfirmHost, ThemeToggle } from "./kit.jsx";
 
 export function BrandMark({ size = 40 }) {
   return (
@@ -62,6 +62,7 @@ export function AppShell({ brandName, brandSub, top, nav, active, onNavigate, us
           </div>
           <div className="spacer"/>
           {topActions}
+          <ThemeToggle/>
         </header>
         <main key={active} className="anim-fade" style={{ flex: 1 }}>{children}</main>
       </div>

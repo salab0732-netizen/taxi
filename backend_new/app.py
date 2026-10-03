@@ -110,6 +110,24 @@ def login():
         if not acc or acc["password_hash"] != hash_password(password):
             return jsonify({"error": "بيانات الدخول غير صحيحة"}), 401
 
+        # الفصل الصارم بين الفضاءات: لا يُقبل حساب إلا من فضائه — ولا يُمسّ توكنه عند الرفض
+        space = (data.get("space") or "").strip()
+        if space:
+            role = acc["role"]
+            ok = (role == "admin") if space == "admin" else \
+                 (role == "company") if space == "company" else \
+                 (role not in ("admin", "company"))
+            if not ok:
+                msg = {
+                    "admin":   "هذا الحساب ليس حساب إدارة",
+                    "company": "هذا الحساب ليس حساب شركة — استعمل فضاء سائقي سيارات الأجرة",
+                }.get(space, "هذا الحساب غير مخصص لفضاء سائقي سيارات الأجرة")
+                if space != "admin" and role == "company":
+                    msg = "هذا حساب شركة — استعمل فضاء شركات سيارات الأجرة"
+                if space != "admin" and role == "admin":
+                    msg = "بيانات الدخول غير صحيحة"
+                return jsonify({"error": msg}), 403
+
         token = secrets.token_hex(32)
         conn.execute(
             "UPDATE accounts SET token=?, updated_at=datetime('now','localtime') WHERE id=?",
@@ -208,6 +226,7 @@ from routes.deputy        import deputy_bp
 from routes.requests      import requests_bp
 from routes.ocr           import ocr_bp
 from routes.print         import print_bp
+from routes.work_cert     import work_cert_bp
 from routes.admin         import admin_bp
 from routes.notifications import notif_bp
 
@@ -298,8 +317,8 @@ def google_callback():
             conn.commit()
             acc = conn.execute("SELECT * FROM accounts WHERE id=?", (account_id,)).fetchone()
 
-        # الحساب موجود بنوع مختلف عن الزر المستعمل (المدير مسموح من زر السائقين)
-        wrong = (acc["role"] != "company") if want == "company" else (acc["role"] == "company")
+        # الحساب موجود بنوع مختلف عن الزر المستعمل (حساب الإدارة لا يدخل من أي زر عام)
+        wrong = (acc["role"] != "company") if want == "company" else (acc["role"] in ("company", "admin"))
         if wrong:
             return redirect(FRONTEND_URL + f"/?google_error=wrong_type&want={want}")
 
@@ -342,6 +361,7 @@ app.register_blueprint(deputy_bp)
 app.register_blueprint(requests_bp)
 app.register_blueprint(ocr_bp)
 app.register_blueprint(print_bp)
+app.register_blueprint(work_cert_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(notif_bp)
 

@@ -3,6 +3,7 @@
 // ════════════════════════════════════════════════════════════
 import { useState, useEffect } from "react";
 import MonitorTab from "./MonitorTab.jsx";
+import WorkCertDialog from "./WorkCertDialog.jsx";
 import { CompanyAdminSection, CompanyExcelBtn, COMPANY_NAV } from "./CompanyAdmin.jsx";
 import { api, REQUEST_TYPES } from "../api.js";
 import { AppShell } from "../ui/Shell.jsx";
@@ -472,7 +473,6 @@ function DriversTable({ drivers, token }) {
                     </div>
                     {isDup && <Badge tone="danger" size="sm" icon="alert">NIN مكرر</Badge>}
                     {(permisExpired || depPermisExpired) && <Badge tone="danger" size="sm" title="رخصة منتهية">رخصة منتهية</Badge>}
-                    {d.deputy_permit_number && <Badge tone="violet" size="sm" icon="scroll" title="لديه رخصة سائق إضافي">مناوب</Badge>}
                   </div>
                 </td>
                 <td className="mono ltr" style={{ textAlign: "right" }}>{d.nin || "—"}</td>
@@ -496,6 +496,7 @@ function DriversTable({ drivers, token }) {
 }
 
 function DriverDetail({ d, detail, today, token, permisExpired, depPermisExpired }) {
+  const [cert, setCert] = useState(null);
   const depPermit = detail.deputy_permit;
   const blocks = [
     { title: "بيانات السائق", icon: "user", tone: "brand", items: [
@@ -531,29 +532,33 @@ function DriverDetail({ d, detail, today, token, permisExpired, depPermisExpired
 
   return (
     <div style={{ padding: 20 }} className="stack">
+      {cert && <WorkCertDialog token={token} driverId={cert.driverId} nin={cert.nin} title={cert.title} onClose={() => setCert(null)}/>}
       {(permisExpired || depPermisExpired) && (
         <Alert tone="danger" title="وثائق منتهية الصلاحية">
           {permisExpired && <div>رخصة سياقة السائق منتهية ({fmtDate(d.permis_expiration)})</div>}
           {depPermisExpired && <div>رخصة سياقة المناوب منتهية ({fmtDate(d.dep_permis_exp)})</div>}
         </Alert>
       )}
-      {depPermit && (
-        <Alert tone="violet" icon="scroll" title={`رخصة السائق الإضافي رقم ${depPermit.permit_number}`}
-          action={<Button size="sm" variant="violet" icon="printer" onClick={() => openPrint(`/api/admin/print/deputy-permit/${d.id}?token=${token}`)}>طباعة</Button>}>
-          صادرة في {fmtDate(depPermit.issue_date)} — صالحة إلى <b style={{ color: depPermit.expiry_date && depPermit.expiry_date < today ? "var(--danger)" : "var(--success)" }}>{fmtDate(depPermit.expiry_date) || "غير محدد"}</b> — المركبة <span className="ltr">{depPermit.num_immatriculation || "—"}</span>
-        </Alert>
-      )}
       <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
         {blocks.map(b => (
           <Card key={b.title} title={b.title} icon={b.icon} tone={b.tone} className="flat"><DescList items={b.items}/></Card>
         ))}
-        <Card title="الوثائق" icon="printer" tone="neutral" className="flat">
+        <Card title="الوثائق الإدارية" icon="printer" tone="neutral" className="flat">
+          <div className="doc-group-title">الرخص</div>
+          <div className="stack-sm">
+            {(d.door_number || detail.door)
+              ? <Button variant="secondary" block icon="scroll" onClick={() => openPrint(`/api/admin/print/current-license/${d.id}?token=${token}`)}>رخصة الاستغلال</Button>
+              : <div className="doc-empty">لا توجد رخصة استغلال (لا رقم باب)</div>}
+            {depPermit
+              ? <Button variant="secondary" block icon="scroll" onClick={() => openPrint(`/api/admin/print/deputy-permit/${d.id}?token=${token}`)}>رخصة السائق الإضافي</Button>
+              : <div className="doc-empty">لا توجد رخصة سائق إضافي</div>}
+          </div>
+          <div className="doc-group-title" style={{ marginTop: 14 }}>الشهادات</div>
           <div className="stack-sm">
             <Button variant="secondary" block icon="history" onClick={() => openPrint(`/api/admin/print/history/${d.id}?token=${token}`)}>الشهادة التاريخية</Button>
-            <Button variant="secondary" block icon="stamp" onClick={() => openPrint(`/api/admin/print/work-cert/${d.id}?token=${token}`)}>شهادة إدارية (شهادة عمل)</Button>
-            {detail.deputy_contract && <Button variant="secondary" block icon="stamp" onClick={() => openPrint(`/api/admin/print/work-cert/${d.id}?kind=deputy&token=${token}`)}>شهادة إدارية للمناوب</Button>}
-            {detail.rental && <Button variant="secondary" block icon="fileSignature" onClick={() => openPrint(`/api/print/rental-contract/${detail.rental.id}?token=${token}`)}>عقد الكراء</Button>}
-            {detail.deputy_contract && <Button variant="secondary" block icon="fileSignature" onClick={() => openPrint(`/api/print/deputy-contract/${detail.deputy_contract.id}?token=${token}`)}>عقد المناوب</Button>}
+            <Button variant="secondary" block icon="stamp" onClick={() => setCert({ driverId: d.id, title: "الشهادة الإدارية — السائق" })}>شهادة إدارية — السائق</Button>
+            {detail.deputy_contract && (detail.deputy?.nin)
+              && <Button variant="secondary" block icon="stamp" onClick={() => setCert({ nin: detail.deputy.nin, title: "الشهادة الإدارية — السائق الإضافي" })}>شهادة إدارية — السائق الإضافي</Button>}
           </div>
           {detail.requests?.length > 0 && (
             <>
