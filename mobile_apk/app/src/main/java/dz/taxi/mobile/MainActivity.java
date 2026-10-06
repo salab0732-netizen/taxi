@@ -52,6 +52,8 @@ import java.util.ArrayList;
  */
 public class MainActivity extends Activity {
     private static final String PREFS = "taxi", KEY_URL = "server_url";
+    /** الخادم السحابي الدائم (Oracle Cloud) — يُستعمل تلقائياً، لا حاجة لإدخال أي رابط */
+    private static final String DEFAULT_URL = "https://taxi.kafaa-albayadh.duckdns.org";
     private static final String VERSION = "1.1";
     // ngrok المجاني يعرض صفحة تحذير لكل متصفح؛ وكيل مستخدم غير متصفّحي يتجاوزها
     private static final String UA_TAG = "TaxiApp/" + VERSION + " (Android)";
@@ -72,7 +74,12 @@ public class MainActivity extends Activity {
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         getWindow().setStatusBarColor(Color.parseColor("#052E28"));
         String url = prefs.getString(KEY_URL, "");
-        if (url.isEmpty()) showSetup(null); else showWeb(url);
+        // الروابط المؤقتة القديمة (ngrok / الحاسوب) ← الخادم السحابي الدائم
+        if (url.isEmpty() || url.contains("ngrok") || url.startsWith("http://")) {
+            url = DEFAULT_URL;
+            prefs.edit().putString(KEY_URL, url).apply();
+        }
+        showWeb(url);
         handleAuth(getIntent());
     }
 
@@ -118,17 +125,16 @@ public class MainActivity extends Activity {
         box.setBackgroundColor(Color.parseColor("#F4F6F5"));
 
         TextView title = new TextView(this);
-        title.setText("🚕 منصة تسيير سيارات الأجرة\nربط الهاتف بالحاسوب");
+        title.setText("🚕 منصة تسيير سيارات الأجرة\nعنوان الخادم");
         title.setTextSize(20);
         title.setTextColor(Color.parseColor("#052E28"));
         title.setGravity(Gravity.CENTER);
         box.addView(title);
 
         TextView hint = new TextView(this);
-        hint.setText("اكتب رابط البرنامج الظاهر على الحاسوب عند تشغيل START.bat\n"
-                + "(رابط ngrok مثل: https://xxxx.ngrok-free.app)\n"
-                + "أو عنوان الحاسوب في الشبكة نفسها / Tailscale مثل: 192.168.1.10:3000\n\n"
-                + "البيانات تبقى على الحاسوب — الهاتف لا يحفظ شيئاً.");
+        hint.setText("العنوان الرسمي للمنصة:\n" + DEFAULT_URL + "\n\n"
+                + "تأكّد من اتصال الهاتف بالإنترنت ثم اضغط «اتصال».\n"
+                + "الهاتف لا يحفظ أي بيانات.");
         hint.setTextSize(14);
         hint.setTextColor(Color.parseColor("#5B6B66"));
         hint.setGravity(Gravity.CENTER);
@@ -137,8 +143,8 @@ public class MainActivity extends Activity {
 
         final EditText input = new EditText(this);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
-        input.setHint("https://xxxx.ngrok-free.app");
-        input.setText(prefs.getString(KEY_URL, ""));
+        input.setHint(DEFAULT_URL);
+        input.setText(prefs.getString(KEY_URL, DEFAULT_URL));
         input.setTextDirection(View.TEXT_DIRECTION_LTR);
         input.setSingleLine(true);
         box.addView(input);
@@ -165,8 +171,7 @@ public class MainActivity extends Activity {
                         prefs.edit().putString(KEY_URL, u).apply();
                         showWeb(u);
                     } else {
-                        err.setText("تعذّر الاتصال بالحاسوب.\nتأكّد أن الحاسوب مشغّل وأن START.bat يعمل،\n"
-                                + "وأن الرابط هو الرابط الحالي (رابط ngrok يتغيّر عند كل تشغيل).");
+                        err.setText("تعذّر الاتصال بالخادم.\nتأكّد من اتصال الهاتف بالإنترنت ثم أعد المحاولة.");
                     }
                 });
             }).start();
@@ -270,7 +275,7 @@ public class MainActivity extends Activity {
 
         @Override
         public void onReceivedError(WebView v, WebResourceRequest req, WebResourceError e) {
-            if (req.isForMainFrame() && !popup) showSetup("الحاسوب غير متصل — تأكّد أنه مشغّل وأن START.bat يعمل.");
+            if (req.isForMainFrame() && !popup) showSetup("تعذّر الوصول إلى الخادم — تأكّد من اتصال الهاتف بالإنترنت.");
         }
 
         @Override
@@ -278,7 +283,7 @@ public class MainActivity extends Activity {
             // ngrok متوقّف أو الرابط قديم ← رسالة واضحة بدل صفحة خطأ ngrok
             if (req.isForMainFrame() && !popup && r.getStatusCode() >= 400 && r.getStatusCode() != 401 && r.getStatusCode() != 403
                     && req.getUrl().toString().replaceAll("/+$", "").equals(base)) {
-                showSetup("الرابط لم يعد يعمل (" + r.getStatusCode() + ").\nرابط ngrok يتغيّر عند كل تشغيل — انسخ الرابط الجديد من الحاسوب.");
+                showSetup("الخادم لم يستجب (" + r.getStatusCode() + ") — أعد المحاولة بعد قليل.");
             }
         }
     }
