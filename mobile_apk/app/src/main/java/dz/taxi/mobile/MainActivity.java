@@ -75,9 +75,9 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(Color.parseColor("#052E28"));
         String url = prefs.getString(KEY_URL, "");
         // الروابط المؤقتة القديمة (ngrok / الحاسوب) ← الخادم السحابي الدائم
-        if (url.isEmpty() || url.contains("ngrok") || url.startsWith("http://")) {
-            url = DEFAULT_URL;
-            prefs.edit().putString(KEY_URL, url).apply();
+        if (url.isEmpty() || !prefs.getBoolean("migrated_v2", false)) {
+            url = DEFAULT_URL;   // أول تشغيل للإصدار 2: النسخة الجديدة (السحابية)
+            prefs.edit().putString(KEY_URL, url).putBoolean("migrated_v2", true).apply();
         }
         showWeb(url);
         handleAuth(getIntent());
@@ -125,15 +125,15 @@ public class MainActivity extends Activity {
         box.setBackgroundColor(Color.parseColor("#F4F6F5"));
 
         TextView title = new TextView(this);
-        title.setText("🚕 منصة تسيير سيارات الأجرة\nعنوان الخادم");
+        title.setText("🚕 منصة تسيير سيارات الأجرة\nاختيار النسخة");
         title.setTextSize(20);
         title.setTextColor(Color.parseColor("#052E28"));
         title.setGravity(Gravity.CENTER);
         box.addView(title);
 
         TextView hint = new TextView(this);
-        hint.setText("العنوان الرسمي للمنصة:\n" + DEFAULT_URL + "\n\n"
-                + "تأكّد من اتصال الهاتف بالإنترنت ثم اضغط «اتصال».\n"
+        hint.setText("☁️ النسخة الجديدة (السحابية — المعتمدة): اضغط الزرّ أدناه.\n"
+                + "💻 النسخة القديمة (على الحاسوب): اكتب رابط ngrok الظاهر عند تشغيل START.bat.\n"
                 + "الهاتف لا يحفظ أي بيانات.");
         hint.setTextSize(14);
         hint.setTextColor(Color.parseColor("#5B6B66"));
@@ -141,10 +141,26 @@ public class MainActivity extends Activity {
         hint.setPadding(0, dp(12), 0, dp(16));
         box.addView(hint);
 
+        Button cloud = new Button(this);
+        cloud.setText("☁️ النسخة الجديدة (السحابية)");
+        cloud.setOnClickListener(v -> {
+            prefs.edit().putString(KEY_URL, DEFAULT_URL).apply();
+            showWeb(DEFAULT_URL);
+        });
+        box.addView(cloud);
+
+        TextView or = new TextView(this);
+        or.setText("— أو النسخة القديمة (الحاسوب) —");
+        or.setTextColor(Color.parseColor("#5B6B66"));
+        or.setGravity(Gravity.CENTER);
+        or.setPadding(0, dp(20), 0, dp(6));
+        box.addView(or);
+
         final EditText input = new EditText(this);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
-        input.setHint(DEFAULT_URL);
-        input.setText(prefs.getString(KEY_URL, DEFAULT_URL));
+        input.setHint("https://xxxx.ngrok-free.dev");
+        String cur = prefs.getString(KEY_URL, "");
+        input.setText(cur.equals(DEFAULT_URL) ? "" : cur);
         input.setTextDirection(View.TEXT_DIRECTION_LTR);
         input.setSingleLine(true);
         box.addView(input);
@@ -157,7 +173,7 @@ public class MainActivity extends Activity {
         box.addView(err);
 
         Button go = new Button(this);
-        go.setText("اتصال");
+        go.setText("💻 اتصال بالنسخة القديمة");
         go.setOnClickListener(v -> {
             String u = normalize(input.getText().toString());
             if (u == null) { err.setText("الرابط غير صحيح"); return; }
@@ -171,7 +187,7 @@ public class MainActivity extends Activity {
                         prefs.edit().putString(KEY_URL, u).apply();
                         showWeb(u);
                     } else {
-                        err.setText("تعذّر الاتصال بالخادم.\nتأكّد من اتصال الهاتف بالإنترنت ثم أعد المحاولة.");
+                        err.setText("تعذّر الاتصال بالنسخة القديمة.\nتأكّد أن START.bat يعمل على الحاسوب وأن الرابط هو الرابط الحالي.");
                     }
                 });
             }).start();
@@ -484,7 +500,7 @@ public class MainActivity extends Activity {
         if (web != null) {
             if (web.canGoBack()) { web.goBack(); return; }
             new AlertDialog.Builder(this)
-                    .setItems(new String[]{"🔄 إعادة تحميل", "🔗 تغيير رابط الحاسوب", "🚪 خروج"}, (d, i) -> {
+                    .setItems(new String[]{"🔄 إعادة تحميل", "🔀 تغيير النسخة (الجديدة / القديمة)", "🚪 خروج"}, (d, i) -> {
                         if (i == 0) web.reload();
                         else if (i == 1) showSetup(null);
                         else finish();
