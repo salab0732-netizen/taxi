@@ -1,2 +1,2 @@
 @echo off
-start "" "http://localhost:3000/#admin"
+start "" "http://localhost:3600/#admin"

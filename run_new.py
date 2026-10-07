@@ -28,7 +28,7 @@ if __name__ == "__main__":
     print("\n⏳ تشغيل ngrok...")
 
     proc = subprocess.Popen(
-        ["ngrok", "http", "3000"],
+        ["ngrok", "http", "127.0.0.1:3600"],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL
     )

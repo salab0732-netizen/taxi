@@ -34,3 +34,6 @@ __pycache__/
 venv/
 node_modules/
 dist/
+
+# النسخة السحابية (تحتوي أسراراً وقاعدة البيانات)
+cloud_version/

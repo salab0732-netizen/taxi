@@ -254,12 +254,33 @@ def list_drivers(account, company_id):
     return jsonify({"drivers": _list("company_drivers", company_id)})
 
 
+def _driver_dup_error(conn, company_id, data, exclude_id=None, current_nin=None):
+    """منع تسجيل نفس السائق مرتين في الشركة + التحقق من طول رقم التعريف الوطني (18 رقماً)."""
+    nin = "".join(ch for ch in str(data.get("nin") or "") if ch.isdigit())
+    if data.get("nin") and len(nin) != 18 and nin != "".join(ch for ch in str(current_nin or "") if ch.isdigit()):
+        return f"رقم التعريف الوطني يجب أن يتكوّن من 18 رقماً (المُدخل: {len(nin)}) — صحّحه يدوياً"
+    permis = (_clean(data.get("num_permis")) or "").upper()
+    for col, val, lbl in (("nin", nin, "رقم التعريف الوطني"), ("UPPER(num_permis)", permis, "رقم رخصة السياقة")):
+        if not val:
+            continue
+        row = conn.execute(f"SELECT nom_ar, prenom_ar FROM company_drivers WHERE company_id=? AND {col}=?"
+                           + (" AND id<>?" if exclude_id else ""),
+                           (company_id, val) + ((exclude_id,) if exclude_id else ())).fetchone()
+        if row:
+            return f"هذا السائق مسجّل مسبقاً في شركتك ({(row['nom_ar'] or '')} {(row['prenom_ar'] or '')}) — نفس {lbl}"
+    return None
+
+
 @company_bp.route("/api/company/drivers", methods=["POST"])
 @require_company
 def add_driver(account, company_id):
     d = request.get_json() or {}
     if not _clean(d.get("nom_ar")) and not _clean(d.get("nom_fr")):
         return jsonify({"error": "لقب السائق مطلوب"}), 400
+    with get_db() as conn:
+        err = _driver_dup_error(conn, company_id, d)
+    if err:
+        return jsonify({"error": err}), 400
     return _save("company_drivers", DRIVER_FIELDS, DRV_IMAGES, company_id)
 
 
@@ -272,6 +293,9 @@ def edit_driver(account, company_id, did):
                            (did, company_id)).fetchone()
         if not cur:
             return jsonify({"error": "غير موجود"}), 404
+        err = _driver_dup_error(conn, company_id, data, did, cur["nin"])
+        if err:
+            return jsonify({"error": err}), 400
         if _active_contract(conn, did):
             # بيانات الهوية والرخصة تظهر في العقد ورخصة سائق أجير — لا تُغيَّر أثناء العقد
             LOCK = [("nom_ar", "اللقب"), ("prenom_ar", "الاسم"), ("nin", "NIN"),

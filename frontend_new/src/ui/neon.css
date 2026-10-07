@@ -296,3 +296,8 @@ html[data-theme="neon"] .wc-period { background: rgba(10,8,32,.45); box-shadow: 
 html[data-theme="neon"] .wc-num { box-shadow: 0 0 10px var(--wc); color: #0b0920; }
 .modal.lg { display: flex; flex-direction: column; overflow: hidden; }
 .modal.lg .modal-body { overflow-y: auto; flex: 1; min-height: 0; }
+
+/* القوائم المنسدلة: سهم واحد غير مكرّر (حتى في الحالة المعطّلة) */
+html[data-theme="neon"] .select,
+html[data-theme="neon"] .select:disabled { background-repeat: no-repeat !important; background-position: left 10px center !important; }
+.select:disabled { background-repeat: no-repeat; background-position: left 10px center; }

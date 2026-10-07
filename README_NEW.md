@@ -12,7 +12,7 @@ cd F:\taxi-main\frontend_new
 npm run dev
 ```
 
-افتح المتصفح: http://localhost:3000
+افتح المتصفح: http://localhost:3600
 
 ---
 
