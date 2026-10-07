@@ -7,6 +7,7 @@ sudo cp -a "$APP/backend/registrations.db" "$APP/backups/before_update_$(date +%
 sudo find "$PKG/backend" -maxdepth 1 -mindepth 1 ! -name registrations.db ! -name config.local.json -exec cp -a {} "$APP/backend/" \;
 sudo rm -rf "$APP/frontend" && sudo mkdir -p "$APP/frontend" && sudo cp -a "$PKG/frontend/." "$APP/frontend/"
 sudo chown -R taxi:taxi "$APP"
+sudo chmod -R u+rwX "$APP"   # ملفات Windows قد تصل للقراءة فقط
 sudo -u taxi "$APP/venv/bin/pip" install -q -r "$APP/backend/requirements-cloud.txt"
 sudo systemctl restart taxi
 echo "✅ تم التحديث"

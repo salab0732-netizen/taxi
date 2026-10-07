@@ -61,6 +61,7 @@ d["GOOGLE_REDIRECT_URI"] = f"https://{dom}/api/auth/google/callback"
 json.dump(d, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
 PY
 sudo chown -R taxi:taxi "$APP"
+sudo chmod -R u+rwX "$APP"   # ملفات Windows قد تصل للقراءة فقط
 sudo chmod 600 "$APP/backend/config.local.json" "$APP/backend/gemini_key" "$APP/backend/claude_key" 2>/dev/null || true
 
 echo "==> 5/8 بيئة Python"
