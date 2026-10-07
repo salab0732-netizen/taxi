@@ -30,8 +30,16 @@ SMS_SIM      = int(_cfg("SMS_SIM", 1))
 from utils import require_auth, require_admin, IMAGES_DIR
 from monitor_middleware import register_monitor, register_monitor_api
 
+from security import (hash_password, verify_password, password_problem, client_ip,
+                      LOGIN_THROTTLE, GLOBAL_THROTTLE, lock_message, register_security,
+                      new_session, new_print_token, new_oauth_state, take_oauth_state)
+
 app = Flask(__name__)
-CORS(app)
+# CORS: الواجهة تُخدم من نفس الأصل؛ يُسمح فقط بأصل الواجهة المعتمد ومنافذ التطوير المحلية
+_origins = [o for o in {FRONTEND_URL.rstrip("/") if FRONTEND_URL else ""} if o] + [
+    "http://localhost:3600", "http://127.0.0.1:3600", "http://localhost:5000", "http://127.0.0.1:5000"]
+CORS(app, resources={r"/api/*": {"origins": _origins}})
+app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
 
 
 # ════════════════════════════════════════
@@ -47,8 +55,7 @@ migrate_db()
 # ══ نظام المراقبة ══
 register_monitor(app)
 
-def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
+register_security(app, get_db)
 
 # ════════════════════════════════════════
 # المصادقة
@@ -64,8 +71,9 @@ def register():
         role = "driver"
     if not username or not password:
         return jsonify({"error": "اسم المستخدم وكلمة المرور مطلوبان"}), 400
-    if len(password) < 6:
-        return jsonify({"error": "كلمة المرور يجب أن تكون 6 أحرف على الأقل"}), 400
+    _pp = password_problem(password)
+    if _pp:
+        return jsonify({"error": _pp}), 400
 
     with get_db() as conn:
         if conn.execute("SELECT id FROM accounts WHERE username=?", (username,)).fetchone():
@@ -104,11 +112,23 @@ def login():
         return jsonify({"error": "اسم المستخدم وكلمة المرور مطلوبان"}), 400
 
     with get_db() as conn:
+        ip = client_ip()
+        keys = ("ip:" + ip, "user:" + username.lower())
+        wait = LOGIN_THROTTLE.locked_for(*keys) or GLOBAL_THROTTLE.locked_for("all")
+        if wait:
+            return jsonify({"error": lock_message(wait)}), 429
         acc = conn.execute(
             "SELECT * FROM accounts WHERE username=? AND is_active=1", (username,)
         ).fetchone()
-        if not acc or acc["password_hash"] != hash_password(password):
+        ok, upgrade = verify_password(password, acc["password_hash"] if acc else "")
+        if not ok:
+            LOGIN_THROTTLE.fail(*keys)
+            GLOBAL_THROTTLE.fail("all")
             return jsonify({"error": "بيانات الدخول غير صحيحة"}), 401
+        LOGIN_THROTTLE.success(*keys)
+        if upgrade:   # ترحيل تلقائي من SHA-256 القديمة إلى PBKDF2
+            conn.execute("UPDATE accounts SET password_hash=? WHERE id=?", (hash_password(password), acc["id"]))
+            conn.commit()
 
         # الفصل الصارم بين الفضاءات: لا يُقبل حساب إلا من فضائه — ولا يُمسّ توكنه عند الرفض
         space = (data.get("space") or "").strip()
@@ -128,11 +148,8 @@ def login():
                     msg = "بيانات الدخول غير صحيحة"
                 return jsonify({"error": msg}), 403
 
-        token = secrets.token_hex(32)
-        conn.execute(
-            "UPDATE accounts SET token=?, updated_at=datetime('now','localtime') WHERE id=?",
-            (token, acc["id"])
-        )
+        token = new_session(conn, acc["id"], acc["role"])
+        conn.commit()
         driver = conn.execute(
             "SELECT id FROM drivers WHERE account_id=?", (acc["id"],)
         ).fetchone()
@@ -160,11 +177,36 @@ def login():
 def logout(account):
     with get_db() as conn:
         conn.execute(
-            "UPDATE accounts SET token=NULL, updated_at=datetime('now','localtime') WHERE id=?",
+            "UPDATE accounts SET token=NULL, token_expires=NULL, updated_at=datetime('now','localtime') WHERE id=?",
             (account["id"],)
         )
+        conn.execute("DELETE FROM print_tokens WHERE account_id=?", (account["id"],))
         conn.commit()
     return jsonify({"success": True})
+
+
+@app.route("/api/admin/audit", methods=["GET"])
+@require_admin
+def admin_audit(account):
+    """سجلّ تدقيق العمليات الإدارية — آخر 300 عملية."""
+    q = (request.args.get("q") or "").strip()
+    with get_db() as conn:
+        if q:
+            rows = conn.execute("""SELECT * FROM admin_audit WHERE path LIKE ? OR username LIKE ? OR detail LIKE ?
+                                   ORDER BY id DESC LIMIT 300""", (f"%{q}%",) * 3).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM admin_audit ORDER BY id DESC LIMIT 300").fetchall()
+    return jsonify({"items": [dict(r) for r in rows]})
+
+
+@app.route("/api/auth/print-token", methods=["POST"])
+@require_auth
+def print_token(account):
+    """رمز قصير العمر (5 دقائق) لفتح وثائق الطباعة في نافذة جديدة دون كشف رمز الجلسة في الرابط."""
+    with get_db() as conn:
+        t = new_print_token(conn, account["id"])
+        conn.commit()
+    return jsonify({"token": t, "ttl": 300})
 
 
 @app.route("/api/auth/me", methods=["GET"])
@@ -235,6 +277,10 @@ from routes.notifications import notif_bp
 # ── Google OAuth ──
 @app.route("/api/auth/google")
 def google_login():
+    # state عشوائي يُخزَّن في الخادم (حماية من CSRF) ويحمل نوع الحساب المطلوب
+    with get_db() as conn:
+        _state = new_oauth_state(conn, "company" if request.args.get("role") == "company" else "driver")
+        conn.commit()
     params = {
         "client_id":     GOOGLE_CLIENT_ID,
         "redirect_uri":  GOOGLE_REDIRECT_URI,
@@ -243,7 +289,7 @@ def google_login():
         "access_type":   "offline",
         "prompt":        "select_account",
         # نوع الحساب المطلوب (سائق / شركة) يُمرَّر عبر state ويعود في الـ callback
-        "state":         "company" if request.args.get("role") == "company" else "driver",
+        "state":         _state,
     }
     url = GOOGLE_AUTH_URL + "?" + urllib.parse.urlencode(params)
     return redirect(url)
@@ -253,7 +299,11 @@ def google_login():
 def google_callback():
     code  = request.args.get("code")
     error = request.args.get("error")
-    want  = "company" if request.args.get("state") == "company" else "driver"
+    with get_db() as conn:
+        want = take_oauth_state(conn, request.args.get("state", ""))
+        conn.commit()
+    if not want:
+        return redirect(FRONTEND_URL + "/?google_error=cancelled&want=driver")
 
     if error or not code:
         return redirect(FRONTEND_URL + f"/?google_error=cancelled&want={want}")
@@ -323,11 +373,8 @@ def google_callback():
             return redirect(FRONTEND_URL + f"/?google_error=wrong_type&want={want}")
 
         # توليد توكن جلسة
-        token = secrets.token_hex(32)
-        conn.execute(
-            "UPDATE accounts SET token=?, google_email=?, updated_at=datetime('now','localtime') WHERE id=?",
-            (token, email, acc["id"])
-        )
+        token = new_session(conn, acc["id"], acc["role"])
+        conn.execute("UPDATE accounts SET google_email=? WHERE id=?", (email, acc["id"]))
         driver  = conn.execute("SELECT id FROM drivers WHERE account_id=?", (acc["id"],)).fetchone()
         company = conn.execute("SELECT id FROM companies WHERE account_id=?", (acc["id"],)).fetchone()
         conn.commit()
@@ -406,6 +453,10 @@ def forgot_password():
     phone = (data.get("phone") or "").strip()
     if not phone:
         return jsonify({"error": "أدخل رقم الهاتف"}), 400
+    _w = LOGIN_THROTTLE.locked_for("otp-ip:" + client_ip())
+    if _w:
+        return jsonify({"error": lock_message(_w)}), 429
+    LOGIN_THROTTLE.fail("otp-ip:" + client_ip())   # كل طلب رمز يُحتسب (حماية رصيد الرسائل)
     with get_db() as conn:
         acc = conn.execute(
             "SELECT id FROM accounts WHERE username=?", (phone,)
@@ -444,8 +495,13 @@ def reset_password():
     new_pass = (data.get("new_password") or "").strip()
     if not phone or not otp or not new_pass:
         return jsonify({"error": "بيانات ناقصة"}), 400
-    if len(new_pass) < 6:
-        return jsonify({"error": "كلمة المرور يجب أن تكون 6 أحرف على الأقل"}), 400
+    _pp = password_problem(new_pass)
+    if _pp:
+        return jsonify({"error": _pp}), 400
+    _k = "reset-ip:" + client_ip()
+    _w = LOGIN_THROTTLE.locked_for(_k)
+    if _w:
+        return jsonify({"error": lock_message(_w)}), 429
     with get_db() as conn:
         acc = conn.execute(
             "SELECT id, reset_otp, reset_otp_expiry, reset_attempts FROM accounts WHERE username=?",
@@ -457,16 +513,17 @@ def reset_password():
             conn.execute("UPDATE accounts SET reset_otp=NULL, reset_otp_expiry=NULL WHERE id=?", (acc["id"],))
             conn.commit()
             return jsonify({"error": "محاولات كثيرة خاطئة — اطلب رمزاً جديداً"}), 400
-        if acc["reset_otp"] != otp:
+        if not secrets.compare_digest(str(acc["reset_otp"]), otp):
+            LOGIN_THROTTLE.fail(_k)
             conn.execute("UPDATE accounts SET reset_attempts=COALESCE(reset_attempts,0)+1 WHERE id=?", (acc["id"],))
             conn.commit()
             return jsonify({"error": "الرمز غير صحيح"}), 400
         if acc["reset_otp_expiry"] and datetime.now() > datetime.strptime(acc["reset_otp_expiry"], "%Y-%m-%d %H:%M:%S"):
             return jsonify({"error": "انتهت صلاحية الرمز — اطلب رمزاً جديداً"}), 400
-        h = hashlib.sha256(new_pass.encode()).hexdigest()
+        h = hash_password(new_pass)
         conn.execute(
             # إلغاء الجلسات القديمة (token=NULL) عند تغيير كلمة المرور
-            "UPDATE accounts SET password_hash=?, reset_otp=NULL, reset_otp_expiry=NULL, reset_attempts=0, token=NULL WHERE id=?",
+            "UPDATE accounts SET password_hash=?, reset_otp=NULL, reset_otp_expiry=NULL, reset_attempts=0, token=NULL, token_expires=NULL WHERE id=?",
             (h, acc["id"])
         )
         conn.commit()

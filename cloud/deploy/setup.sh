@@ -99,33 +99,7 @@ sudo mkdir -p "$SITE_DIR"
 if [ ! -f /etc/caddy/Caddyfile ] || ! grep -q "import /etc/caddy/centres/\*.caddy" /etc/caddy/Caddyfile; then
   echo "import /etc/caddy/centres/*.caddy" | sudo tee -a /etc/caddy/Caddyfile >/dev/null
 fi
-sudo tee "$SITE_DIR/taxi-platform.caddy" >/dev/null <<CADDY
-$DOMAIN {
-    encode gzip
-    request_body {
-        max_size 40MB
-    }
-    handle /api/* {
-        reverse_proxy 127.0.0.1:$PORT
-    }
-    handle {
-        root * $APP/frontend
-        try_files {path} /index.html
-        file_server
-    }
-    header {
-        Strict-Transport-Security "max-age=31536000"
-        X-Content-Type-Options nosniff
-        Referrer-Policy strict-origin-when-cross-origin
-    }
-}
-CADDY
-if ! sudo caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1; then
-  echo "❌ خطأ في إعداد Caddy — أُزيل ملف البرنامج حتى لا يتأثر موقع كفاءة"
-  sudo caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile 2>&1 | tail -5
-  sudo rm -f "$SITE_DIR/taxi-platform.caddy"
-  exit 1
-fi
+bash "$PKG/deploy/caddy_site.sh" "$DOMAIN" "$PORT" "$APP"
 # صور Ubuntu في Oracle تغلق كل المنافذ ما عدا 22 — نفتح 80 و443
 for port in 80 443; do
   sudo iptables -C INPUT -p tcp --dport $port -m state --state NEW -j ACCEPT 2>/dev/null || \

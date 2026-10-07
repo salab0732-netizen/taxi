@@ -12,15 +12,17 @@ if [ "$CMD" = reset ]; then
   echo "نسخة احتياطية: $BK"
 fi
 read -r -p "اسم المستخدم: " U
-read -r -s -p "كلمة المرور (8 أحرف على الأقل): " P1; echo
+read -r -s -p "كلمة المرور (10 أحرف على الأقل، حروف وأرقام): " P1; echo
 read -r -s -p "أعد كلمة المرور: " P2; echo
 [ "$P1" = "$P2" ] || { echo "❌ كلمتا المرور غير متطابقتين"; exit 1; }
-[ ${#P1} -ge 8 ] || { echo "❌ كلمة المرور قصيرة"; exit 1; }
+[ ${#P1} -ge 10 ] || { echo "❌ كلمة المرور قصيرة (10 أحرف على الأقل لحساب الإدارة)"; exit 1; }
+[[ "$P1" =~ [0-9] && "$P1" =~ [A-Za-z] ]] || { echo "❌ يجب أن تجمع بين حروف وأرقام"; exit 1; }
 sudo -u taxi TAXI_U="$U" TAXI_P="$P1" TAXI_CMD="$CMD" python3 - "$DB" <<'PY'
-import sqlite3, sys, os, hashlib
+import sqlite3, sys, os, hashlib, secrets
 c = sqlite3.connect(sys.argv[1]); c.execute("PRAGMA foreign_keys = OFF")
 u, p, cmd = os.environ["TAXI_U"].strip(), os.environ["TAXI_P"], os.environ["TAXI_CMD"]
-h = hashlib.sha256(p.encode()).hexdigest()
+_salt = secrets.token_bytes(16)
+h = f"pbkdf2_sha256$600000${_salt.hex()}${hashlib.pbkdf2_hmac('sha256', p.encode(), _salt, 600000).hex()}"
 if cmd == "reset":
     c.execute("DELETE FROM accounts")
     c.execute("DELETE FROM sqlite_sequence WHERE name='accounts'")

@@ -96,6 +96,64 @@ export default function MonitorTab({ token }) {
           </div>
         )}
       </Card>
+      <AuditCard token={token}/>
     </div>
+  );
+}
+
+// ── سجلّ تدقيق العمليات الإدارية ──
+const ACT = [
+  [/work-cert/, "شهادة إدارية", "stamp"], [/approve|accept|قبول/, "قبول", "checkCircle"],
+  [/reject|refuse|رفض/, "رفض", "xCircle"], [/delete|remove/, "حذف", "trash"],
+  [/print/, "طباعة", "printer"], [/status/, "تغيير حالة", "refresh"],
+];
+const actOf = (m, p) => {
+  for (const [rx, label, icon] of ACT) if (rx.test(p)) return { label, icon };
+  return { label: m === "DELETE" ? "حذف" : m === "PUT" ? "تعديل" : "عملية", icon: "edit" };
+};
+
+function AuditCard({ token }) {
+  const [items, setItems] = useState(null);
+  const [q, setQ] = useState("");
+  const load = useCallback(() => {
+    fetch(`/api/admin/audit?q=${encodeURIComponent(q)}`, { headers: { "X-Token": token } })
+      .then(r => r.json()).then(d => setItems(d.items || [])).catch(() => setItems([]));
+  }, [token, q]);
+  useEffect(() => { load(); }, [load]);
+  return (
+    <Card title="سجلّ العمليات الإدارية" subtitle="كل تعديل يقوم به حساب الإدارة: من، متى، ومن أي عنوان" icon="shield" padded={false}
+      actions={<div className="row" style={{ gap: 8 }}>
+        <input className="input" style={{ width: 200 }} placeholder="بحث…" value={q} onChange={e => setQ(e.target.value)}/>
+        <Button size="sm" variant="secondary" icon="refresh" onClick={load}>تحديث</Button>
+      </div>}>
+      {!items ? null : items.length === 0 ? <EmptyState icon="shield" title="لا توجد عمليات مسجّلة بعد"/> : (
+        <div style={{ maxHeight: 480, overflowY: "auto" }}>
+          {items.map(a => {
+            const A = actOf(a.method, a.path);
+            const ok = a.status < 400;
+            return (
+              <div key={a.id} style={{ padding: "10px 20px", borderBottom: "1px solid var(--line-2)" }}>
+                <div className="row" style={{ gap: 12, alignItems: "flex-start" }}>
+                  <div className={`icon-tile sm tone-${ok ? "brand" : "danger"}`}><Icon name={A.icon} size={15}/></div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="row-wrap" style={{ gap: 8 }}>
+                      <Badge tone={ok ? "brand" : "danger"} size="sm">{A.label}</Badge>
+                      <b>{a.username}</b>
+                      <span className="mono ltr cell-sub" style={{ overflowWrap: "anywhere" }}>{a.method} {a.path}</span>
+                      {!ok && <Badge tone="danger" size="sm">{a.status}</Badge>}
+                    </div>
+                    {a.detail && a.detail !== "{}" && <div className="cell-sub" style={{ marginTop: 3, overflowWrap: "anywhere" }}>{a.detail.slice(0, 200)}</div>}
+                  </div>
+                  <div className="stack-sm" style={{ alignItems: "flex-end", gap: 2 }}>
+                    <span className="cell-sub nowrap" dir="rtl">{String(a.ts || "").replace(/^(\d{4})-(\d\d)-(\d\d) (\d\d:\d\d).*/, "$3/$2/$1 — $4")}</span>
+                    <span className="cell-sub nowrap ltr mono">{a.ip}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
   );
 }

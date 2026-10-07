@@ -3,6 +3,7 @@ import { api, ACTIVITY_LABELS, ACTIVITY_TYPES } from "../api.js";
 import ResumeRequestForm from "./ResumeRequestForm.jsx";
 import { Card, Alert, Button, Badge, StatusBadge, ActionTile, Select, TextArea, Field, EmptyState, reqMeta, fmtDate, promptDialog, toast } from "../ui/kit.jsx";
 import Icon from "../ui/Icon.jsx";
+import { withPrintToken, refreshPrintToken } from "../printToken.js";
 
 const COLOR    = "#125950";
 const C_BLUE   = "#0891b2";
@@ -52,7 +53,7 @@ export default function RequestsTab({ token, profile, onSaved }) {
     api.getRequests(token).then(res => setRequests(res.requests || []));
     if (onSaved) onSaved();
     const u = url + (purpose.trim() ? "&purpose=" + encodeURIComponent(purpose.trim()) : "");
-    if (w) w.location.href = u; else window.open(u, "_blank");
+    if (w) { const go = () => { w.location.href = withPrintToken(u); }; withPrintToken(u) !== u ? go() : refreshPrintToken().then(go); } else window.open(u, "_blank");
   }
 
   async function submitAndPrint(key, reqData, printFn) {

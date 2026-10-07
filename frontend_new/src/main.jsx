@@ -4,6 +4,8 @@ import "./ui/theme.css";
 import "./ui/neon.css";
 import { getTheme, applyTheme } from "./ui/kit.jsx";
 applyTheme(getTheme());
+import { installPrintTokens } from "./printToken.js";
+installPrintTokens();
 import App from "./App.jsx";
 
 ReactDOM.createRoot(document.getElementById("root")).render(

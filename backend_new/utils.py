@@ -13,14 +13,16 @@ IMAGES_DIR = APP_DIR / "images"
 IMAGES_DIR.mkdir(exist_ok=True)
 
 
-def get_account_from_token(token: str):
-    if not token:
-        return None
+def get_account_from_token(token: str = None):
+    """رمز الجلسة من الترويسة X-Token فقط؛ الروابط (?token=) تقبل رموز الطباعة القصيرة pt_ فقط."""
+    from security import lookup_account
+    hdr = request.headers.get("X-Token", "")
     with get_db() as conn:
-        row = conn.execute(
-            "SELECT * FROM accounts WHERE token=? AND is_active=1", (token,)
-        ).fetchone()
-        return dict(row) if row else None
+        acc = lookup_account(conn, hdr, False) if hdr else \
+              lookup_account(conn, request.args.get("token", ""), True)
+    if acc:
+        request._sec_account = acc
+    return acc
 
 
 STORE_UPLOADED_DOCUMENTS = False
@@ -58,8 +60,7 @@ def require_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         # يقبل الـ token من Header أو من query param ?token=
-        token = request.headers.get("X-Token", "") or request.args.get("token", "")
-        acc = get_account_from_token(token)
+        acc = get_account_from_token()
         if not acc:
             return jsonify({"error": "غير مصرح"}), 401
         return f(*args, account=acc, **kwargs)
@@ -69,8 +70,7 @@ def require_auth(f):
 def require_admin(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = request.headers.get("X-Token", "") or request.args.get("token", "")
-        acc = get_account_from_token(token)
+        acc = get_account_from_token()
         if not acc or acc["role"] != "admin":
             return jsonify({"error": "للمدير فقط"}), 403
         return f(*args, account=acc, **kwargs)
