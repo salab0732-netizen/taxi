@@ -20,6 +20,12 @@ $DOMAIN {
     handle {
         root * $APP/frontend
         try_files {path} /index.html
+        # الصفحة الرئيسية لا تُحفظ في ذاكرة المتصفح/التطبيق: كل تحديث يظهر فوراً
+        # (ملفات assets تحمل بصمة في اسمها فتُحفظ سنة كاملة)
+        @assets path /assets/*
+        header @assets Cache-Control "public, max-age=31536000, immutable"
+        @page not path /assets/*
+        header @page Cache-Control "no-cache"
         file_server
     }
     header {
