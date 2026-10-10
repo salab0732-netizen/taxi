@@ -74,6 +74,12 @@ def save_door(account):
                 return jsonify({"error": "صفة «مستفيد» تعني أن السائق هو صاحب الرخصة: بطاقة التعريف المُدخلة لا تطابق هوية السائق "
                                          "(رقم التعريف الوطني أو الاسم وتاريخ الميلاد) — تحقق من البطاقة أو اختر «مستأجر»"}), 400
 
+        # === التحقق من الحقول الإلزامية (رسالة واضحة بدل خطأ في الخادم) ===
+        missing = [lbl for k, lbl in (("door_number", "رقم الرخصة (الباب)"), ("ben_nom_ar", "لقب المستفيد"),
+                                      ("ben_prenom_ar", "اسم المستفيد")) if not str(data.get(k) or "").strip()]
+        if missing:
+            return jsonify({"error": "حقول إلزامية ناقصة: " + "، ".join(missing)}), 400
+
         # === 1. حفظ/تحديث المستفيد ===
         ben_nin = data.get("ben_nin", "")
         existing_ben = conn.execute(

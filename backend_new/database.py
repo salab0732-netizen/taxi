@@ -21,16 +21,25 @@ def get_db():
     finally:
         conn.close()
 
+import threading as _threading
+_NUM_LOCK = _threading.Lock()
+_NUM_LAST = {}
+
+
 def generate_number(prefix: str, table: str, col: str) -> str:
     """الرقم التالي = أكبر رقم تسلسلي مستعمل + 1 (وليس رقم آخر سطر حسب id —
-    كان ذلك يعطي رقماً مكرراً عند المعالجة بغير الترتيب)"""
+    كان ذلك يعطي رقماً مكرراً عند المعالجة بغير الترتيب).
+    القفل + آخر رقم صادر في الذاكرة: طلبان متزامنان لا يأخذان نفس الرقم قبل أن يُحفظ الأول."""
     year = datetime.now().year
-    with get_db() as conn:
-        row = conn.execute(
-            f"SELECT MAX(CAST(substr({col}, length(?) + 1) AS INTEGER)) FROM {table} WHERE {col} LIKE ?",
-            (f"{prefix}-{year}-", f"{prefix}-{year}-%")
-        ).fetchone()
-    num = (row[0] or 0) + 1
+    key = (prefix, year, table)
+    with _NUM_LOCK:
+        with get_db() as conn:
+            row = conn.execute(
+                f"SELECT MAX(CAST(substr({col}, length(?) + 1) AS INTEGER)) FROM {table} WHERE {col} LIKE ?",
+                (f"{prefix}-{year}-", f"{prefix}-{year}-%")
+            ).fetchone()
+        num = max(row[0] or 0, _NUM_LAST.get(key, 0)) + 1
+        _NUM_LAST[key] = num
     return f"{prefix}-{year}-{num:06d}"
 
 def check_deputy_contract_date(end_date: str, driver_id: int) -> tuple[bool, str]:

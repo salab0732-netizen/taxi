@@ -11,7 +11,9 @@ def _make_logger(name, filename, level=logging.DEBUG):
     logger = logging.getLogger(name)
     if logger.handlers: return logger
     logger.setLevel(level)
-    fh = logging.FileHandler(LOG_DIR / filename, encoding="utf-8")
+    from logging.handlers import RotatingFileHandler
+    # تدوير السجلات: 10 MB لكل ملف × 5 ملفات (لا تملأ القرص أبداً)
+    fh = RotatingFileHandler(LOG_DIR / filename, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8")
     fh.setFormatter(logging.Formatter("%(message)s"))
     logger.addHandler(fh)
     return logger
@@ -27,6 +29,14 @@ def _entry(**kwargs):
     return json.dumps({"ts": _now(), **kwargs}, ensure_ascii=False)
 
 # ══ تسجيل الطلبات والأخطاء ══
+def _ip():
+    try:
+        from security import client_ip
+        return client_ip()
+    except Exception:
+        return request.remote_addr
+
+
 def register_monitor(app):
 
     @app.before_request
@@ -41,18 +51,21 @@ def register_monitor(app):
             path     = request.path,
             status   = response.status_code,
             ms       = duration,
-            ip       = request.remote_addr,
+            ip       = _ip(),
             agent    = request.headers.get("User-Agent","")[:60],
         )
         request_log.info(entry)
         # سجّل الأخطاء 4xx/5xx
-        if response.status_code >= 400:
+        _dup = (response.status_code == 404 and request.url_rule is None) or response.status_code == 405
+        if response.status_code >= 400 and not _dup:   # 404/405 للمسارات غير الموجودة تُسجَّل في معالجاتها
             try:
                 body = response.get_json(silent=True) or {}
             except Exception:
                 body = {}
+            sc = response.status_code
             error_log.warning(_entry(
-                level    = "HTTP_ERROR",
+                level    = "AUTH" if sc in (401, 403) else "LOCK" if sc == 429 else "404" if sc == 404 else "HTTP_ERROR",
+                ip       = _ip(),
                 method   = request.method,
                 path     = request.path,
                 status   = response.status_code,
@@ -63,6 +76,9 @@ def register_monitor(app):
 
     @app.errorhandler(Exception)
     def handle_exception(e):
+        from werkzeug.exceptions import HTTPException
+        if isinstance(e, HTTPException):   # 400/404/413… أخطاء طبيعية — تُرجع برمزها الصحيح لا 500
+            return {"error": {400: "طلب غير صالح", 413: "حجم الطلب أكبر من المسموح (25 MB)"}.get(e.code, e.name)}, e.code
         tb = traceback.format_exc()
         error_log.error(_entry(
             level   = "EXCEPTION",
@@ -71,7 +87,8 @@ def register_monitor(app):
             error   = str(e),
             trace   = tb[-800:],
         ))
-        return {"error": "خطأ داخلي في الخادم", "detail": str(e)}, 500
+        # لا تُكشف تفاصيل الخطأ للمستخدم (تبقى في السجل فقط)
+        return {"error": "خطأ داخلي في الخادم"}, 500
 
     @app.errorhandler(404)
     def not_found(e):
@@ -105,7 +122,10 @@ def register_monitor_api(app):
     @app.route("/api/monitor/errors", methods=["GET"])
     @require_admin
     def get_errors(account):
-        n = int(request.args.get("n", 50))
+        try:
+            n = max(1, min(int(request.args.get("n", 50)), 1000))
+        except ValueError:
+            n = 50
         log_file = LOG_DIR / "errors.log"
         if not log_file.exists():
             return jsonify({"errors": []})
@@ -164,12 +184,25 @@ def register_monitor_api(app):
 
     @app.route("/api/monitor/frontend-error", methods=["POST"])
     def frontend_error():
-        data = request.get_json() or {}
+        # مفتوح بلا جلسة (أخطاء صفحة الدخول) — محدود لكل عنوان حتى لا يُغرق السجل
+        from security import Throttle, client_ip
+        global _FE_THROTTLE
+        try:
+            _FE_THROTTLE
+        except NameError:
+            _FE_THROTTLE = Throttle(max_fail=30, window=600, lock=600)
+        ip = client_ip()
+        if _FE_THROTTLE.locked_for(ip):
+            return jsonify({"ok": False}), 429
+        _FE_THROTTLE.fail(ip)
+        data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            data = {}
         error_log.error(_entry(
             level   = "FRONTEND",
-            msg     = data.get("message",""),
-            url     = data.get("url",""),
-            stack   = (data.get("stack") or "")[:500],
+            msg     = str(data.get("message",""))[:300],
+            url     = str(data.get("url",""))[:200],
+            stack   = str(data.get("stack") or "")[:500],
             ua      = request.headers.get("User-Agent","")[:80],
         ))
         return jsonify({"ok": True})

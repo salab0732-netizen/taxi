@@ -3,11 +3,14 @@
 #   bash admin_account.sh reset     ← حذف كل الحسابات (بما فيها الإدارة) ثم إنشاء حساب إدارة جديد
 #   bash admin_account.sh add       ← إضافة حساب إدارة جديد
 #   bash admin_account.sh passwd    ← تغيير كلمة مرور حساب
+#   أضف كلمة test في الآخر للعمل على النسخة التجريبية:  bash admin_account.sh add test
 set -euo pipefail
-DB=/opt/taxi/backend/registrations.db
+APP=/opt/taxi; [ "${2:-}" = "test" ] && APP=/opt/taxi-test
+DB=$APP/backend/registrations.db
+echo "القاعدة: $DB"
 CMD="${1:-add}"
 if [ "$CMD" = reset ]; then
-  BK=/opt/taxi/backups/before_accounts_reset_$(date +%F_%H%M).db
+  BK=$APP/backups/before_accounts_reset_$(date +%F_%H%M).db
   sudo -u taxi sqlite3 "$DB" ".backup '$BK'"
   echo "نسخة احتياطية: $BK"
 fi

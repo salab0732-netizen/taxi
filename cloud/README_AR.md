@@ -14,6 +14,7 @@
 | `deploy/setup.sh` | التثبيت الكامل بأمر واحد |
 | `deploy/update.sh` | تحديث الشيفرة لاحقاً دون المساس بالبيانات |
 | `deploy/download_db.sh` | نسخة فورية **مشفّرة** من قاعدة البيانات |
+| `deploy/selftest.sh` | الفحص الشامل لكل وظائف البرنامج (تقرير PDF في مراقبة النظام) |
 | `deploy/caddy_site.sh` | إعداد HTTPS ورؤوس الأمان (يُستدعى تلقائياً) |
 
 ## ما يقوم به التثبيت تلقائياً
@@ -127,3 +128,38 @@ ssh -i C:\oracle\taxi.key ubuntu@IP "sudo systemctl stop taxi && sudo cp /opt/ta
 - رؤوس أمان HTTP (HSTS, CSP, X‑Frame‑Options…) في Caddy وFlask.
 - سجلّ العمليات الإدارية: لوحة الإدارة ← مراقبة النظام ← «سجلّ العمليات الإدارية».
 - النسخ المنزّلة مشفّرة AES‑256؛ مجلد النسخ على الخادم لا يقرؤه إلا حساب البرنامج.
+
+## الفحص الشامل
+```bash
+bash taxi-cloud/deploy/selftest.sh
+```
+- يأخذ نسخة احتياطية ثم يختبر: البنية، الموقع الحي، الحسابات، مسار السائق والشركة، الصلاحيات، المدخلات، التزامن، الأداء، المراقبة.
+- ينشئ بيانات تجريبية حقيقية (حسابات تبدأ بـ st_) — امسحها قبل الاستغلال الفعلي بـ `bash taxi-cloud/deploy/reset_data.sh`.
+- التقرير: لوحة الإدارة ← مراقبة النظام ← «تقارير الفحص الشامل» ← «عرض / حفظ PDF».
+
+## بيئة الاختبار (النسخة التجريبية) — مثل مسارات Google Play
+| | الإنتاج | الاختبار |
+|---|---|---|
+| الرابط | https://taxi.kafaa-albayadh.duckdns.org | https://taxi-test.kafaa-albayadh.duckdns.org |
+| المجلد / الخدمة / المنفذ | /opt/taxi · taxi · 8901 | /opt/taxi-test · taxi-test · 8902 |
+| البيانات | حقيقية | وهمية — تُمسح متى شئت |
+| الشكل | عادي | إطار برتقالي + «نسخة تجريبية»، وكل وثيقة تحمل «غير صالحة» |
+| SMS | حقيقي | لا يُرسل — الرمز يظهر على الشاشة |
+| تطبيق أندرويد | Taxi-mobile.apk | Taxi-mobile-TEST.apk (يُثبَّت بجانب الأصلي) |
+
+**التثبيت (مرة واحدة):**
+```bash
+bash taxi-cloud/deploy/staging_setup.sh
+bash taxi-cloud/deploy/admin_account.sh add test      # حساب إدارة للنسخة التجريبية
+```
+
+**كل تحديث جديد:**
+1. `bash taxi-cloud/deploy/stage.sh` ← يرفع التحديث إلى الاختبار فقط ويشغّل الفحص الشامل.
+2. جرّب على الهاتف (التطبيق التجريبي) والحاسوب.
+3. `bash taxi-cloud/deploy/promote.sh` ← ينقل **نفس الإصدار المُختبَر** إلى الإنتاج (نسخة احتياطية تلقائية).
+4. عند أي مشكلة: `bash taxi-cloud/deploy/rollback.sh` ← الإصدار السابق في دقيقة.
+
+أوامر أخرى على النسخة التجريبية: `bash taxi-cloud/deploy/selftest.sh test` · `bash taxi-cloud/deploy/reset_data.sh test`
+
+**الدخول بحساب Google في النسخة التجريبية (اختياري):** أضف في Google Cloud Console ← Credentials ← OAuth client ← Authorized redirect URIs:
+`https://taxi-test.kafaa-albayadh.duckdns.org/api/auth/google/callback`

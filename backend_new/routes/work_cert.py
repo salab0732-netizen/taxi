@@ -313,6 +313,14 @@ def _ensure_table(conn):
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_wc_num ON work_certificates(cert_year, cert_serial)")
 
 
+try:   # إنشاء جدول الأرشيف عند تشغيل البرنامج
+    with get_db() as _c:
+        _ensure_table(_c)
+        _c.commit()
+except Exception:
+    pass
+
+
 def _next_serial(conn, year):
     r = conn.execute("SELECT COALESCE(MAX(cert_serial),0) FROM work_certificates WHERE cert_year=?", (year,)).fetchone()
     return (r[0] or 0) + 1
@@ -321,7 +329,7 @@ def _next_serial(conn, year):
 def _clean_periods(periods):
     out = []
     for x in periods or []:
-        if not _d(x.get("start")):
+        if not isinstance(x, dict) or not _d(x.get("start")):
             continue
         out.append({"sifa": str(x.get("sifa") or "مستغل")[:30], "start": _d(x.get("start")),
                     "end": _d(x.get("end")), "end_kind": "final" if x.get("end_kind") == "final" else "",
@@ -371,9 +379,9 @@ def work_cert_history(account):
 def work_cert_render(account):
     """تحرير شهادة جديدة: رقم تلقائي + حفظ البيانات في قاعدة البيانات."""
     data = request.get_json(silent=True) or {}
-    raw = data.get("person") or {}
+    raw = data.get("person") if isinstance(data.get("person"), dict) else {}
     person = {k: str(raw.get(k) or "").strip()[:200] for k in PERSON_KEYS}
-    periods = _clean_periods(data.get("periods"))
+    periods = _clean_periods(data.get("periods") if isinstance(data.get("periods"), list) else [])
     if not periods:
         return Response("<p dir=rtl style='font-family:sans-serif;padding:30px'>لا توجد أي فترة نشاط صالحة.</p>",
                         mimetype="text/html; charset=utf-8"), 400
@@ -382,15 +390,16 @@ def work_cert_render(account):
     year = int(issue_date[:4])
     with get_db() as conn:
         _ensure_table(conn)
-        serial = _next_serial(conn, year)
-        cert_number = f"{serial:03d}"
         drv = conn.execute("SELECT id FROM drivers WHERE nin=? ORDER BY id DESC LIMIT 1", (person["nin"],)).fetchone() if person["nin"] else None
+        # الرقم يُحسب داخل نفس عملية الإدراج (ذرّياً) — لا يتكرر حتى لو حرّر موظفان شهادتين في نفس اللحظة
         cur = conn.execute("""INSERT INTO work_certificates
             (cert_year, cert_serial, cert_number, nin, driver_id, person_json, periods_json, place, issue_date, issued_by)
-            VALUES (?,?,?,?,?,?,?,?,?,?)""",
-            (year, serial, cert_number, person["nin"] or None, drv["id"] if drv else None,
+            SELECT ?, s, printf('%03d', s), ?,?,?,?,?,?,?
+            FROM (SELECT COALESCE(MAX(cert_serial),0)+1 AS s FROM work_certificates WHERE cert_year=?)""",
+            (year, person["nin"] or None, drv["id"] if drv else None,
              json.dumps(person, ensure_ascii=False), json.dumps(periods, ensure_ascii=False),
-             place, issue_date, account["id"]))
+             place, issue_date, account["id"], year))
+        cert_number = conn.execute("SELECT cert_number FROM work_certificates WHERE id=?", (cur.lastrowid,)).fetchone()[0]
         cid = cur.lastrowid
     page = _render(person, periods, cert_number, issue_date, place)
     resp = Response(page, mimetype="text/html; charset=utf-8")

@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, send_from_directory, redirect
 from flask_cors import CORS
-import hashlib, secrets, urllib.parse
+import hashlib, secrets, urllib.parse, re
 import requests as req_lib
 from pathlib import Path
 from database import get_db, init_db, migrate_db
@@ -28,10 +28,11 @@ SMS_PASSWORD = _cfg("SMS_PASSWORD")
 SMS_SIM      = int(_cfg("SMS_SIM", 1))
  
 from utils import require_auth, require_admin, IMAGES_DIR
+from env import TAXI_ENV, IS_TEST
 from monitor_middleware import register_monitor, register_monitor_api
 
 from security import (hash_password, verify_password, password_problem, client_ip,
-                      LOGIN_THROTTLE, GLOBAL_THROTTLE, lock_message, register_security,
+                      LOGIN_THROTTLE, GLOBAL_THROTTLE, IP_THROTTLE, lock_message, register_security,
                       new_session, new_print_token, new_oauth_state, take_oauth_state)
 
 app = Flask(__name__)
@@ -60,6 +61,34 @@ register_security(app, get_db)
 # ════════════════════════════════════════
 # المصادقة
 # ════════════════════════════════════════
+
+TEST_MARK = """<style>
+  .test-mark { position: fixed; inset: 0; pointer-events: none; z-index: 9999; display: flex;
+               align-items: center; justify-content: center; }
+  .test-mark span { transform: rotate(-30deg); font-size: 64px; font-weight: 800; color: rgba(220, 38, 38, .16);
+                    border: 6px solid rgba(220, 38, 38, .16); padding: 10px 30px; border-radius: 14px; white-space: nowrap; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+</style><div class="test-mark"><span>نسخة تجريبية — غير صالحة</span></div>"""
+
+
+
+@app.after_request
+def _test_watermark(resp):
+    """بيئة الاختبار: كل وثيقة HTML (طباعة) تحمل علامة «نسخة تجريبية — غير صالحة»."""
+    if IS_TEST and resp.mimetype == "text/html" and request.path.startswith("/api/") and not resp.direct_passthrough:
+        html = resp.get_data(as_text=True)
+        m = re.search(r"<body[^>]*>", html, re.I)
+        html = html[:m.end()] + TEST_MARK + html[m.end():] if m else TEST_MARK + html
+        html = re.sub(r"<title>", "<title>[تجريبي] ", html, count=1, flags=re.I)
+        resp.set_data(html)
+    return resp
+
+
+@app.route("/api/env")
+def app_env():
+    """نوع البيئة (عام): الواجهة تُظهر شريط «نسخة تجريبية» في بيئة الاختبار."""
+    return jsonify({"env": TAXI_ENV, "test": IS_TEST})
+
 
 @app.route("/api/auth/register", methods=["POST"])
 def register():
@@ -113,8 +142,10 @@ def login():
 
     with get_db() as conn:
         ip = client_ip()
-        keys = ("ip:" + ip, "user:" + username.lower())
-        wait = LOGIN_THROTTLE.locked_for(*keys) or GLOBAL_THROTTLE.locked_for("all")
+        pair = "pair:" + ip + ":" + username.lower()            # (العنوان، الحساب)
+        ukey = "acct:" + username.lower()                       # الحساب من أي عنوان
+        ikey = "ip:" + ip
+        wait = LOGIN_THROTTLE.locked_for(pair) or IP_THROTTLE.locked_for(ikey) or GLOBAL_THROTTLE.locked_for(ukey)
         if wait:
             return jsonify({"error": lock_message(wait)}), 429
         acc = conn.execute(
@@ -122,10 +153,12 @@ def login():
         ).fetchone()
         ok, upgrade = verify_password(password, acc["password_hash"] if acc else "")
         if not ok:
-            LOGIN_THROTTLE.fail(*keys)
-            GLOBAL_THROTTLE.fail("all")
+            LOGIN_THROTTLE.fail(pair)
+            IP_THROTTLE.fail(ikey)
+            GLOBAL_THROTTLE.fail(ukey)
             return jsonify({"error": "بيانات الدخول غير صحيحة"}), 401
-        LOGIN_THROTTLE.success(*keys)
+        LOGIN_THROTTLE.success(pair)
+        GLOBAL_THROTTLE.success(ukey)
         if upgrade:   # ترحيل تلقائي من SHA-256 القديمة إلى PBKDF2
             conn.execute("UPDATE accounts SET password_hash=? WHERE id=?", (hash_password(password), acc["id"]))
             conn.commit()
@@ -199,6 +232,18 @@ def admin_audit(account):
     return jsonify({"items": [dict(r) for r in rows]})
 
 
+@app.route("/api/auth/google/exchange", methods=["POST"])
+def google_exchange():
+    """استبدال رمز الدخول المؤقت (gcode) برمز الجلسة — مرة واحدة فقط."""
+    code = ((request.get_json(silent=True) or {}).get("gcode") or "").strip()
+    with get_db() as conn:
+        v = take_oauth_state(conn, code) if code else None
+        conn.commit()
+    if not v or not v.startswith("login:"):
+        return jsonify({"error": "انتهت صلاحية رمز الدخول — أعد المحاولة"}), 400
+    return jsonify({"token": v[len("login:"):]})
+
+
 @app.route("/api/auth/print-token", methods=["POST"])
 @require_auth
 def print_token(account):
@@ -269,6 +314,7 @@ from routes.requests      import requests_bp
 from routes.ocr           import ocr_bp
 from routes.print         import print_bp
 from routes.work_cert     import work_cert_bp
+from routes.selftest_report import selftest_bp
 from routes.admin         import admin_bp
 from routes.notifications import notif_bp
 
@@ -279,7 +325,9 @@ from routes.notifications import notif_bp
 def google_login():
     # state عشوائي يُخزَّن في الخادم (حماية من CSRF) ويحمل نوع الحساب المطلوب
     with get_db() as conn:
-        _state = new_oauth_state(conn, "company" if request.args.get("role") == "company" else "driver")
+        _want = "company" if request.args.get("role") == "company" else "driver"
+        # «.app» ← الدخول من تطبيق الهاتف: يتم في متصفح الهاتف ثم تعود النتيجة إلى التطبيق
+        _state = new_oauth_state(conn, _want + (".app" if request.args.get("app") == "1" else ""))
         conn.commit()
     params = {
         "client_id":     GOOGLE_CLIENT_ID,
@@ -302,11 +350,34 @@ def google_callback():
     with get_db() as conn:
         want = take_oauth_state(conn, request.args.get("state", ""))
         conn.commit()
+    from_app = bool(want) and want.endswith(".app")
+    want = (want or "").split(".")[0]
+
+    def _go(url):
+        # تطبيق الهاتف: Google يمنع الدخول داخل WebView، فيتم في متصفح الهاتف
+        # ثم تُعاد النتيجة (نفس المعاملات) إلى التطبيق عبر رابط intent
+        if not from_app:
+            return redirect(url)
+        query = url.split("?", 1)[1] if "?" in url else ""
+        pkg = "dz.taxi.mobile.staging" if IS_TEST else "dz.taxi.mobile"
+        intent = f"intent://auth?{query}#Intent;scheme=taxiapp;package={pkg};end"
+        return (
+            "<!DOCTYPE html><html dir='rtl' lang='ar'><head><meta charset='utf-8'>"
+            "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+            "<title>العودة إلى التطبيق</title></head>"
+            "<body style='font-family:sans-serif;text-align:center;padding:40px 16px'>"
+            "<h3>🚕 تمّ — العودة إلى تطبيق سيارات الأجرة</h3>"
+            f"<p><a href=\"{intent}\" style='display:inline-block;padding:14px 28px;background:#0d5c4f;"
+            "color:#fff;border-radius:10px;text-decoration:none;font-size:18px'>فتح التطبيق</a></p>"
+            f"<script>location.href={_json.dumps(intent)};</script>"
+            "</body></html>"
+        )
+
     if not want:
-        return redirect(FRONTEND_URL + "/?google_error=cancelled&want=driver")
+        return _go(FRONTEND_URL + "/?google_error=cancelled&want=driver")
 
     if error or not code:
-        return redirect(FRONTEND_URL + f"/?google_error=cancelled&want={want}")
+        return _go(FRONTEND_URL + f"/?google_error=cancelled&want={want}")
 
     # تبادل الكود بتوكن الوصول
     try:
@@ -320,10 +391,10 @@ def google_callback():
         token_data   = token_resp.json()
         access_token = token_data.get("access_token")
     except Exception as e:
-        return redirect(FRONTEND_URL + f"/?google_error=token_failed&want={want}")
+        return _go(FRONTEND_URL + f"/?google_error=token_failed&want={want}")
 
     if not access_token:
-        return redirect(FRONTEND_URL + f"/?google_error=token_failed&want={want}")
+        return _go(FRONTEND_URL + f"/?google_error=token_failed&want={want}")
 
     # جلب بيانات المستخدم من قوقل
     try:
@@ -333,14 +404,14 @@ def google_callback():
             timeout=10
         ).json()
     except Exception:
-        return redirect(FRONTEND_URL + f"/?google_error=userinfo_failed&want={want}")
+        return _go(FRONTEND_URL + f"/?google_error=userinfo_failed&want={want}")
 
     google_id = user_info.get("sub")
     email     = user_info.get("email", "")
     name      = user_info.get("name", "")
 
     if not google_id:
-        return redirect(FRONTEND_URL + f"/?google_error=no_google_id&want={want}")
+        return _go(FRONTEND_URL + f"/?google_error=no_google_id&want={want}")
 
     with get_db() as conn:
         # هل الحساب موجود بهذا google_id؟
@@ -370,7 +441,7 @@ def google_callback():
         # الحساب موجود بنوع مختلف عن الزر المستعمل (حساب الإدارة لا يدخل من أي زر عام)
         wrong = (acc["role"] != "company") if want == "company" else (acc["role"] in ("company", "admin"))
         if wrong:
-            return redirect(FRONTEND_URL + f"/?google_error=wrong_type&want={want}")
+            return _go(FRONTEND_URL + f"/?google_error=wrong_type&want={want}")
 
         # توليد توكن جلسة
         token = new_session(conn, acc["id"], acc["role"])
@@ -384,15 +455,19 @@ def google_callback():
     role         = acc["role"]
     username_out = acc["username"]
 
+    # رمز الجلسة لا يوضع في الرابط: رمز دخول لمرة واحدة (دقيقتان) تستبدله الواجهة بالجلسة
+    with get_db() as conn:
+        gcode = new_oauth_state(conn, "login:" + token)
+        conn.commit()
     params_out = urllib.parse.urlencode({
-        "token":      token,
+        "gcode":      gcode,
         "role":       role,
         "username":   username_out,
         "driver_id":  driver_id,
         "company_id": company_id,
         "google":     "1",
     })
-    return redirect(f"{FRONTEND_URL}/?{params_out}")
+    return _go(f"{FRONTEND_URL}/?{params_out}")
 
 
 # ════════════════════════════════════════
@@ -409,6 +484,7 @@ app.register_blueprint(requests_bp)
 app.register_blueprint(ocr_bp)
 app.register_blueprint(print_bp)
 app.register_blueprint(work_cert_bp)
+app.register_blueprint(selftest_bp)
 from routes.rtl_dates import register as _register_rtl_dates
 _register_rtl_dates(app)
 app.register_blueprint(admin_bp)
@@ -481,6 +557,8 @@ def forgot_password():
             (otp, expiry, acc["id"])
         )
         conn.commit()
+    if IS_TEST:   # النسخة التجريبية: لا تُرسل رسائل حقيقية — الرمز يظهر للمختبِر
+        return jsonify({"ok": True, "test_otp": otp, "message": f"نسخة تجريبية — الرمز: {otp}"})
     ok = send_sms(phone,
         f"نظام إدارة سيارات الأجرة\nرمز إعادة تعيين كلمة المرور: {otp}\nصالح 10 دقائق")
     if not ok:

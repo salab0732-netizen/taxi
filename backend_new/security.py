@@ -90,8 +90,11 @@ class Throttle:
                 self._locked.pop(k, None)
 
 
-LOGIN_THROTTLE = Throttle(max_fail=5, window=900, lock=900)      # 5 أخطاء ← 15 دقيقة
-GLOBAL_THROTTLE = Throttle(max_fail=60, window=600, lock=600)    # هجوم واسع من عناوين كثيرة
+LOGIN_THROTTLE = Throttle(max_fail=5, window=900, lock=900)      # نفس الحساب من نفس العنوان: 5 أخطاء ← 15 دقيقة
+IP_THROTTLE = Throttle(max_fail=30, window=900, lock=900)        # عنوان واحد يجرّب حسابات كثيرة (مكتب كامل خلف عنوان واحد لا يُقفل بخطأ موظف)
+USER_THROTTLE = Throttle(max_fail=20, window=900, lock=900)      # لكل حساب من عناوين مختلفة: 20 خطأ ← 15 دقيقة
+# لا يوجد قفل عام لكل الحسابات: كان يسمح لأي شخص بتعطيل الدخول على الجميع
+GLOBAL_THROTTLE = USER_THROTTLE   # توافق مع الشيفرة القديمة
 
 
 def lock_message(sec: int) -> str:
@@ -222,6 +225,10 @@ CSP = ("default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe
        "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'")
 
 
+# عمليات تقنية متكررة لا تُعدّ تعديلاً إدارياً
+_AUDIT_SKIP = {"/api/auth/print-token", "/api/monitor/frontend-error", "/api/monitor/frontend", "/api/auth/logout"}
+
+
 def register_security(app, get_db):
     with get_db() as conn:
         ensure_security_schema(conn)
@@ -240,7 +247,8 @@ def register_security(app, get_db):
             resp.headers.setdefault("Cache-Control", "no-store")
         # سجلّ تدقيق العمليات الإدارية (كل تعديل يقوم به حساب إدارة)
         try:
-            if request.method in ("POST", "PUT", "DELETE") and request.path.startswith("/api/"):
+            if request.method in ("POST", "PUT", "DELETE") and request.path.startswith("/api/") \
+                    and request.path not in _AUDIT_SKIP:
                 acc = getattr(request, "_sec_account", None)
                 if acc and acc.get("role") == "admin":
                     with get_db() as conn:

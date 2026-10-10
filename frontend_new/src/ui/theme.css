@@ -199,7 +199,12 @@ input[type="date"].input { direction: ltr; text-align: right; }
 .card.flat { box-shadow: none; }
 .card.hoverable { transition: box-shadow .18s, border-color .18s, transform .18s; }
 .card.hoverable:hover { box-shadow: var(--sh-md); border-color: #d5dce4; }
-@media (max-width: 620px) { .card-body { padding: 16px; } .card-header { padding: 14px 16px; } }
+@media (max-width: 620px) {
+  .card-body { padding: 16px; } .card-header { padding: 14px 16px; flex-wrap: wrap; }
+  .card-header > .row-wrap { width: 100%; }
+  .log-row { flex-wrap: wrap; }
+  .log-row > .stack-sm { width: 100%; flex-direction: row !important; justify-content: space-between; align-items: center !important; order: 3; }   /* الأزرار والشرائح تنزل تحت العنوان بدل أن تتداخل معه */
+}
 
 /* tone icons */
 .tone-brand   { --tc: var(--brand-600); --tb: var(--brand-50);  --tl: var(--brand-100); }
@@ -509,3 +514,6 @@ select:focus, textarea:focus {
 .btn-secondary:hover { border-color: var(--field-hover); }
 .dropzone:not(:hover):not(.drag):not(.has-file) { border-color: var(--field-border); }
 .input.locked { border-color: #5fb8a3; }
+
+/* عنوان الشريط العلوي: سطر واحد على الشاشات الضيقة أو مع تكبير خط الهاتف */
+.topbar-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }

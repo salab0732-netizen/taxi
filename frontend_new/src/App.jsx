@@ -162,6 +162,7 @@ function AuthModal({ onSuccess, onClose, kind = "driver", initialError = "" }) {
     }).then(x => x.json()).catch(() => ({ error: "خطأ في الاتصال" }));
     setLoading(false);
     if (r.error) { setError(r.error); return; }
+    if (r.test_otp) { setForgotOtp(r.test_otp); setError("🧪 نسخة تجريبية — لا تُرسل رسائل حقيقية. الرمز: " + r.test_otp); }
     setForgotStep("otp");
   }
 
@@ -446,14 +447,20 @@ function MainApp() {
   // معالجة إعادة توجيه Google OAuth
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const gToken = params.get("token");
+    const gCode  = params.get("gcode");
     const gRole  = params.get("role");
     const gError = params.get("google_error");
-    if (gToken) {
-      localStorage.setItem("token", gToken);
-      if (gRole === "company") localStorage.setItem("role", "company"); else localStorage.removeItem("role");
-      setToken(gToken);
+    if (gCode) {
+      // رمز دخول لمرة واحدة ← رمز الجلسة (لا يبقى رمز الجلسة في سجلّ المتصفح)
       window.history.replaceState({}, "", "/");
+      fetch("/api/auth/google/exchange", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gcode: gCode }) })
+        .then(r => r.json()).then(d => {
+          if (!d.token) { setAuthError(d.error || "تعذّر الدخول بحساب Google — حاول مجدداً"); setShowAuth(true); return; }
+          localStorage.setItem("token", d.token);
+          if (gRole === "company") localStorage.setItem("role", "company"); else localStorage.removeItem("role");
+          setToken(d.token);
+        }).catch(() => { setAuthError("خطأ في الاتصال"); setShowAuth(true); });
     }
     if (gError) {
       const want = params.get("want");

@@ -394,7 +394,7 @@ def print_rental_contract(account, contract_id):
                    d.lieu_naissance_ar as drv_lieu_naissance,
                    d.num_document_cni as drv_cni_num, d.date_delivrance_cni as drv_cni_date,
                    drv_lic.num_permis as drv_permis, drv_lic.date_delivrance as drv_permis_date,
-                   veh.num_immatriculation, veh.marque, veh.modele, veh.type_vehicule,
+                   veh.num_immatriculation, veh.marque, veh.type_vehicule AS modele, veh.type_vehicule,
                    veh.num_serie, veh.nb_places
             FROM rental_contracts rc
             JOIN door_licenses  dl  ON dl.id = rc.door_license_id

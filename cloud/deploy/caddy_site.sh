@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # يكتب ملف موقع Caddy للبرنامج (مع رؤوس الأمان) — يُستدعى من setup.sh و update.sh
-#   bash caddy_site.sh <DOMAIN> [PORT] [APP]
+#   bash caddy_site.sh <DOMAIN> [PORT] [APP] [NAME]
+#   NAME: taxi-platform (الإنتاج) أو taxi-test (النسخة التجريبية)
 set -euo pipefail
-DOMAIN="$1"; PORT="${2:-8901}"; APP="${3:-/opt/taxi}"
+DOMAIN="$1"; PORT="${2:-8901}"; APP="${3:-/opt/taxi}"; NAME="${4:-taxi-platform}"
 SITE_DIR=/etc/caddy/centres
-SITE="$SITE_DIR/taxi-platform.caddy"
+SITE="$SITE_DIR/$NAME.caddy"
 sudo mkdir -p "$SITE_DIR"
-[ -f "$SITE" ] && sudo cp -a "$SITE" "/tmp/taxi-platform.caddy.bak"
+[ -f "$SITE" ] && sudo cp -a "$SITE" "/tmp/$NAME.caddy.bak"
 sudo tee "$SITE" >/dev/null <<CADDY
 $DOMAIN {
     encode gzip
@@ -35,7 +36,7 @@ CADDY
 if ! sudo caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1; then
   echo "❌ خطأ في إعداد Caddy — استُرجع الملف السابق حتى لا يتأثر موقع كفاءة"
   sudo caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile 2>&1 | tail -5
-  if [ -f /tmp/taxi-platform.caddy.bak ]; then sudo cp -a /tmp/taxi-platform.caddy.bak "$SITE"; else sudo rm -f "$SITE"; fi
+  if [ -f /tmp/$NAME.caddy.bak ]; then sudo cp -a /tmp/$NAME.caddy.bak "$SITE"; else sudo rm -f "$SITE"; fi
   exit 1
 fi
 sudo systemctl reload caddy || sudo systemctl restart caddy

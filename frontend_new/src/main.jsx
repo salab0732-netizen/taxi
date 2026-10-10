@@ -6,6 +6,8 @@ import { getTheme, applyTheme } from "./ui/kit.jsx";
 applyTheme(getTheme());
 import { installPrintTokens } from "./printToken.js";
 installPrintTokens();
+import { installEnvRibbon } from "./envRibbon.js";
+installEnvRibbon();
 import App from "./App.jsx";
 
 ReactDOM.createRoot(document.getElementById("root")).render(

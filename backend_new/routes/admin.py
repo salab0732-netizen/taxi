@@ -903,8 +903,8 @@ def migrate_approval_flow(account):
             """, (now, now, up_to_id))
             cancelled = cur.rowcount
 
-        conn.execute("CREATE TABLE IF NOT EXISTS status_history_backup AS SELECT * FROM status_history WHERE 0")
-        conn.execute("INSERT INTO status_history_backup SELECT * FROM status_history")
+        # نسخة احتياطية كاملة باسم مؤرَّخ (كانت تفشل إذا تغيّرت أعمدة الجدول بعد نسخة سابقة)
+        conn.execute(f"CREATE TABLE status_history_backup_{datetime.now().strftime('%Y%m%d%H%M%S%f')} AS SELECT * FROM status_history")
         conn.execute("DELETE FROM status_history")
         total = 0
         for drv in conn.execute("SELECT id FROM drivers").fetchall():
