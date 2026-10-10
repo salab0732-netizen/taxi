@@ -53,7 +53,8 @@ import java.util.ArrayList;
 public class MainActivity extends Activity {
     private static final String PREFS = "taxi", KEY_URL = "server_url";
     /** الخادم السحابي الدائم (Oracle Cloud) — يُستعمل تلقائياً، لا حاجة لإدخال أي رابط */
-    private static final String DEFAULT_URL = "https://taxi.kafaa-albayadh.duckdns.org";
+    // الرابط حسب نسخة التطبيق (prod / staging) — يُحدَّد في app/build.gradle
+    private static final String DEFAULT_URL = BuildConfig.DEFAULT_URL;
     private static final String VERSION = "1.1";
     // ngrok المجاني يعرض صفحة تحذير لكل متصفح؛ وكيل مستخدم غير متصفّحي يتجاوزها
     private static final String UA_TAG = "TaxiApp/" + VERSION + " (Android)";
@@ -72,7 +73,8 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle state) {
         super.onCreate(state);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
-        getWindow().setStatusBarColor(Color.parseColor("#052E28"));
+        // النسخة التجريبية: شريط حالة برتقالي لتمييزها فوراً عن التطبيق الحقيقي
+        getWindow().setStatusBarColor(Color.parseColor(BuildConfig.IS_STAGING ? "#F97316" : "#052E28"));
         String url = prefs.getString(KEY_URL, "");
         // الروابط المؤقتة القديمة (ngrok / الحاسوب) ← الخادم السحابي الدائم
         if (url.isEmpty() || !prefs.getBoolean("migrated_v2", false)) {

@@ -10,8 +10,31 @@ android {
         applicationId 'dz.taxi.mobile'
         minSdk 29
         targetSdk 34
-        versionCode 4
-        versionName '2.1'
+        versionCode 5
+        versionName '2.2'
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    // نسختان تُثبَّتان معاً على نفس الهاتف (مثل مسارات Google Play):
+    //   prod    ← «سيارات الأجرة»            ← البرنامج الحقيقي
+    //   staging ← «سيارات الأجرة — تجريبي»   ← بيئة الاختبار (أيقونة برتقالية)
+    flavorDimensions 'env'
+    productFlavors {
+        prod {
+            dimension 'env'
+            buildConfigField 'String', 'DEFAULT_URL', '"https://taxi.kafaa-albayadh.duckdns.org"'
+            buildConfigField 'boolean', 'IS_STAGING', 'false'
+        }
+        staging {
+            dimension 'env'
+            applicationIdSuffix '.staging'
+            versionNameSuffix '-test'
+            buildConfigField 'String', 'DEFAULT_URL', '"https://taxi-test.kafaa-albayadh.duckdns.org"'
+            buildConfigField 'boolean', 'IS_STAGING', 'true'
+        }
     }
 
     buildTypes {
@@ -23,5 +46,20 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+// توافق مع سير العمل الحالي في GitHub (يبني assembleDebug وينسخ apk/debug/app-debug.apk):
+// نسخة prod تُنسخ أيضاً إلى المسار القديم، فيبقى ملف Taxi-mobile.apk كما هو
+tasks.configureEach { t ->
+    if (t.name == 'assembleProdDebug') {
+        t.doLast {
+            def out = layout.buildDirectory.get().asFile
+            copy {
+                from new File(out, 'outputs/apk/prod/debug/app-prod-debug.apk')
+                into new File(out, 'outputs/apk/debug')
+                rename { 'app-debug.apk' }
+            }
+        }
     }
 }
