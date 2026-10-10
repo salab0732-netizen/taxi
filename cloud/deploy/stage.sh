@@ -20,6 +20,9 @@ sudo -u taxi "$APP/venv/bin/pip" install -q -r "$APP/backend/requirements-cloud.
 ( cd "$PKG" && find backend frontend -type f ! -name 'registrations.db*' ! -name config.local.json ! -path '*/__pycache__/*' -print0 \
     | sort -z | xargs -0 sha256sum | sha256sum | cut -c1-12 ) | sudo tee "$APP/RELEASE" >/dev/null
 echo "$TS" | sudo tee -a "$APP/RELEASE" >/dev/null
+# الملفات التي ينشئها البرنامج لا يقرؤها غيره (قاعدة البيانات 600)
+grep -q '^UMask=' /etc/systemd/system/taxi-test.service || { sudo sed -i 's/^\(Environment=TAXI_ENV=test\)$/\1\nUMask=0077/' /etc/systemd/system/taxi-test.service; sudo systemctl daemon-reload; }
+sudo chmod 600 "$APP"/backend/registrations.db* 2>/dev/null || true
 sudo systemctl restart taxi-test
 sleep 2
 echo "✅ الإصدار $(head -1 $APP/RELEASE) على النسخة التجريبية — الفحص الشامل:"

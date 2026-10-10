@@ -61,6 +61,7 @@ Group=taxi
 WorkingDirectory=$APP/backend
 Environment=PYTHONIOENCODING=utf-8
 Environment=TAXI_ENV=test
+UMask=0077
 ExecStart=$APP/venv/bin/gunicorn --workers 1 --threads 8 --timeout 180 --bind 127.0.0.1:$PORT app:app
 Restart=always
 RestartSec=3
@@ -72,6 +73,8 @@ UNIT
 sudo systemctl daemon-reload
 sudo systemctl enable --now taxi-test
 sudo systemctl restart taxi-test
+sleep 2
+sudo chmod 600 "$APP"/backend/registrations.db* 2>/dev/null || true
 
 echo "==> 5/6 Caddy (HTTPS)"
 bash "$PKG/deploy/caddy_site.sh" "$DOMAIN" "$PORT" "$APP" taxi-test

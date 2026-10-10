@@ -81,6 +81,7 @@ User=taxi
 Group=taxi
 WorkingDirectory=$APP/backend
 Environment=PYTHONIOENCODING=utf-8
+UMask=0077
 ExecStart=$APP/venv/bin/gunicorn --workers 1 --threads 8 --timeout 180 --bind 127.0.0.1:$PORT app:app
 Restart=always
 RestartSec=3
