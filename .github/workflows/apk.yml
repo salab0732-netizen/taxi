@@ -1,5 +1,5 @@
-# بناء تطبيق الهاتف «سيارات الأجرة» (APK) — الملف يظهر في صفحة التشغيل (Artifacts) باسم Taxi-mobile-apk
-name: APK تطبيق الهاتف
+# Build mobile APKs: Taxi-mobile-apk (production) + Taxi-mobile-TEST-apk (test environment)
+name: APK
 
 on:
   push:
@@ -20,12 +20,19 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.7"
-      - name: Build APK
-        run: gradle -p mobile_apk assembleDebug --no-daemon
+      - name: Build APKs (prod + staging)
+        run: gradle -p mobile_apk assembleProdDebug assembleStagingDebug --no-daemon
       - name: Rename
-        run: cp mobile_apk/app/build/outputs/apk/debug/app-debug.apk Taxi-mobile.apk
+        run: |
+          cp mobile_apk/app/build/outputs/apk/prod/debug/app-prod-debug.apk Taxi-mobile.apk
+          cp mobile_apk/app/build/outputs/apk/staging/debug/app-staging-debug.apk Taxi-mobile-TEST.apk
       - uses: actions/upload-artifact@v4
         with:
           name: Taxi-mobile-apk
           path: Taxi-mobile.apk
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Taxi-mobile-TEST-apk
+          path: Taxi-mobile-TEST.apk
           retention-days: 90
